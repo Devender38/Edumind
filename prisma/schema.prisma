@@ -1,0 +1,228 @@
+// ResolveX Autonomous Customer Resolution Agent — Database Schema
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  tier        String   @default("STANDARD") // STANDARD, VIP, PREMIUM
+  riskScore   Float    @default(0.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders        Order[]
+  tickets       Ticket[]
+  coupons       Coupon[]
+  notifications Notification[]
+}
+
+model Product {
+  id                  String   @id @default(uuid())
+  name                String
+  category            String
+  price               Float
+  stockQuantity       Int      @default(0)
+  replacementEligible Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id             String    @id @default(uuid())
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status         String    @default("PROCESSING") // PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
+  totalAmount    Float
+  currency       String    @default("INR")
+  deliveryDate   DateTime?
+  shippingStatus String    @default("PENDING") // PENDING, DISPATCHED, DELIVERED, RETURNED
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items   OrderItem[]
+  tickets Ticket[]
+  refunds RefundTransaction[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1)
+  unitPrice Float
+
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId         String?
+  order           Order?   @relation(fields: [orderId], references: [id])
+  issueType       String   // DAMAGED, NOT_RECEIVED, WRONG_ITEM, CANCEL_REQUEST
+  customerMessage String
+  status          String   @default("OPEN") // OPEN, INVESTIGATING, ACTION_PENDING, VERIFYING, RESOLVED, ESCALATED, FAILED
+  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  resolutionType  String?  // REFUND, REPLACEMENT, CANCEL, GOODWILL_COUPON, ESCALATED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agentRuns     AgentRun[]
+  actionRecords ActionRecord[]
+  escalations   Escalation[]
+  notifications Notification[]
+}
+
+model Policy {
+  id               String   @id @default(uuid())
+  name             String
+  issueType        String   // DAMAGED, NOT_RECEIVED, WRONG_ITEM, CANCEL_REQUEST
+  actionType       String   // REFUND, REPLACEMENT, CANCEL, GOODWILL_COUPON
+  conditions       String   // JSON string of conditions (e.g. {"maxAmount": 10000, "maxDaysPostDelivery": 14})
+  approvalRequired Boolean  @default(false)
+  priority         Int      @default(1)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AgentRun {
+  id              String    @id @default(uuid())
+  ticketId        String
+  ticket          Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  goal            String
+  status          String    @default("PLANNING") // PLANNING, INVESTIGATING, DECIDING, ACTING, VERIFYING, REPLANNING, RESOLVED, ESCALATED, FAILED
+  currentStep     String    @default("GOAL_RECEIVED")
+  decision        String?
+  finalResolution String?
+  failureReason   String?
+  replanCount     Int       @default(0)
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  traces             AgentTrace[]
+  toolExecutions     ToolExecution[]
+  actionRecords      ActionRecord[]
+  verificationResults VerificationResult[]
+  escalations        Escalation[]
+}
+
+model AgentTrace {
+  id          String   @id @default(uuid())
+  agentRunId  String
+  agentRun    AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  step        String   // GOAL_RECEIVED, INTENT_CLASSIFICATION, INVESTIGATION, POLICY_EVALUATION, DECISION_FORMULATION, TOOL_EXECUTION, ACTION_VERIFICATION, REPLANNING, CASE_RESOLVED, HUMAN_ESCALATION
+  type        String   // GOAL, INTENT, INVESTIGATION, POLICY, DECISION, ACTION, RESULT, VERIFICATION, FAILURE, REPLAN, RESOLUTION, ESCALATION
+  title       String
+  description String?
+  status      String   @default("SUCCESS") // PENDING, RUNNING, SUCCESS, FAILED
+  input       String?  // JSON string
+  output      String?  // JSON string
+  timestamp   DateTime @default(now())
+}
+
+model ToolExecution {
+  id             String    @id @default(uuid())
+  agentRunId     String
+  agentRun       AgentRun  @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  toolName       String
+  idempotencyKey String?   @unique
+  input          String?   // JSON string
+  output         String?   // JSON string
+  status         String    @default("PENDING") // PENDING, RUNNING, SUCCESS, FAILED, TIMEOUT
+  error          String?
+  attempt        Int       @default(1)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+}
+
+model ActionRecord {
+  id                String   @id @default(uuid())
+  ticketId          String
+  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId        String
+  agentRun          AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  actionType        String   // REFUND, REPLACEMENT, CANCELLATION, COUPON, ESCALATION, NOTIFICATION
+  status            String   @default("PENDING") // PENDING, EXECUTED, VERIFIED, FAILED
+  externalReference String?  // e.g. transactionId, replacementOrderId
+  amount            Float?
+  metadata          String?  // JSON string
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  verificationResults VerificationResult[]
+}
+
+model VerificationResult {
+  id            String       @id @default(uuid())
+  actionId      String
+  actionRecord  ActionRecord @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  agentRunId    String
+  agentRun      AgentRun     @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  status        String       @default("PENDING") // PENDING, SUCCESS, FAILED
+  expectedState String?
+  actualState   String?
+  message       String?
+  verifiedAt    DateTime     @default(now())
+}
+
+model Escalation {
+  id         String    @id @default(uuid())
+  ticketId   String
+  ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId String
+  agentRun   AgentRun  @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  reason     String
+  priority   String    @default("HIGH") // LOW, MEDIUM, HIGH, URGENT
+  status     String    @default("PENDING") // PENDING, ASSIGNED, RESOLVED
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       String   // EMAIL, SMS, IN_APP
+  recipient  String
+  message    String
+  status     String   @default("SENT") // PENDING, SENT, FAILED
+  sentAt     DateTime @default(now())
+}
+
+model RefundTransaction {
+  id             String   @id @default(uuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount         Float
+  reason         String
+  idempotencyKey String   @unique
+  status         String   @default("COMPLETED") // COMPLETED, REJECTED, PENDING
+  createdAt      DateTime @default(now())
+}
+
+model Coupon {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code       String   @unique
+  discount   Float
+  expiryDate DateTime
+  isUsed     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
