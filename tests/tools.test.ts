@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LookupTools, PolicyTools, ActionTools, VerificationTools, ToolRegistry } from '../src/tools/index.js';
 import { prisma } from '../src/db/client.js';
+import { seedDatabase } from '../prisma/seed.js';
 
 describe('ResolveX Phase 4 Tool Layer Test Suite', () => {
   beforeAll(async () => {
     await prisma.$connect();
+    await seedDatabase();
   });
 
   afterAll(async () => {

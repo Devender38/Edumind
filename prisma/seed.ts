@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function main() {
+export async function seedDatabase() {
   console.log('🌱 Starting ResolveX Deterministic Database Seed...');
 
   // Clean existing demo data safely
@@ -23,7 +23,6 @@ async function main() {
   await prisma.policy.deleteMany();
 
   // 1. Seed Business Policies
-  console.log('Seeding Policies...');
   const policyRefundLimit = await prisma.policy.create({
     data: {
       name: 'Auto-Refund Threshold Policy',
@@ -49,7 +48,6 @@ async function main() {
   });
 
   // 2. Seed Products
-  console.log('Seeding Products...');
   const phoneProduct = await prisma.product.create({
     data: {
       id: 'prod-phone-001',
@@ -95,7 +93,6 @@ async function main() {
   });
 
   // 3. Seed Customers
-  console.log('Seeding Customers...');
   const primaryCustomer = await prisma.customer.create({
     data: {
       id: 'cust-primary-001',
@@ -127,7 +124,6 @@ async function main() {
   });
 
   // 4. Seed Primary Hackathon Demo Order (₹24,999 Smartphone)
-  console.log('Seeding Primary Hackathon Order...');
   const primaryOrder = await prisma.order.create({
     data: {
       id: 'ord-phone-24999',
@@ -192,7 +188,6 @@ async function main() {
   });
 
   // 6. Seed Primary Hackathon Case/Ticket
-  console.log('Seeding Primary Support Case...');
   const primaryTicket = await prisma.ticket.create({
     data: {
       id: 'tkt-damaged-phone-001',
@@ -206,15 +201,16 @@ async function main() {
   });
 
   console.log('✅ Deterministic Seed Completed Successfully!');
-  console.log(`Primary Demo Ticket ID: ${primaryTicket.id}`);
-  console.log(`Primary Demo Order ID: ${primaryOrder.id} (Amount: ₹${primaryOrder.totalAmount})`);
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed Error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (process.argv[1]?.includes('seed')) {
+  seedDatabase()
+    .catch((e) => {
+      console.error('❌ Seed Error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
+

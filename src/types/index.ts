@@ -103,3 +103,79 @@ export interface ToolResult<T = any> {
   metadata?: ToolMetadata;
 }
 
+// Phase 5: Intent & Investigation Agent Types
+
+export type IssueType =
+  | 'DAMAGED_ITEM'
+  | 'DEFECTIVE_ITEM'
+  | 'MISSING_ITEM'
+  | 'WRONG_ITEM'
+  | 'LATE_DELIVERY'
+  | 'CANCELLATION_REQUEST'
+  | 'REFUND_REQUEST'
+  | 'REPLACEMENT_REQUEST'
+  | 'COUPON_REQUEST'
+  | 'PAYMENT_ISSUE'
+  | 'ORDER_STATUS'
+  | 'GENERAL_SUPPORT'
+  | 'UNKNOWN';
+
+export type RequestedResolution =
+  | 'REFUND'
+  | 'REPLACEMENT'
+  | 'CANCELLATION'
+  | 'COUPON'
+  | 'INFORMATION'
+  | 'ESCALATION'
+  | 'NONE'
+  | 'UNKNOWN';
+
+export interface IntentEntities {
+  customerId?: string;
+  orderId?: string;
+  productId?: string;
+  amount?: number;
+  currency?: string;
+  productName?: string;
+}
+
+export interface StructuredIntent {
+  issueType: IssueType;
+  requestedResolution: RequestedResolution;
+  entities: IntentEntities;
+  urgency: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'FRUSTRATED';
+  confidence: number;
+  reasoningSummary: string;
+  missingInformation: string[];
+}
+
+export interface EvidenceItem {
+  source: string;
+  toolUsed: string;
+  entity: string;
+  fact: string;
+  isObservedFact: boolean;
+  timestamp?: string;
+}
+
+export interface EligibilitySignal {
+  signal: string;
+  status: 'ELIGIBLE' | 'INELIGIBLE' | 'REQUIRES_APPROVAL';
+  details: string;
+}
+
+export interface StructuredInvestigationResult {
+  intent: StructuredIntent;
+  customer?: any;
+  order?: any;
+  products?: any[];
+  evidence: EvidenceItem[];
+  eligibilitySignals: EligibilitySignal[];
+  missingInformation: string[];
+  investigationSummary: string;
+  confidence: number;
+  nextStep: 'POLICY_EVALUATION' | 'NEEDS_INFORMATION' | 'ESCALATION';
+}
+
+

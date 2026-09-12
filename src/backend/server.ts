@@ -5,6 +5,7 @@ import { HealthCheckResponse } from '../types/index.js';
 import { DomainRepository } from '../db/repositories/domainRepository.js';
 import { AgentStateRepository } from '../db/repositories/agentStateRepository.js';
 import { LookupTools, PolicyTools, ActionTools, VerificationTools, ToolRegistry } from '../tools/index.js';
+import { IntentAgent, InvestigationAgent } from '../agents/index.js';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.get('/api/v1', (_req: Request, res: Response) => {
       tickets: '/api/v1/tickets/:id',
       agentRuns: '/api/v1/agent-runs/:id',
       tools: '/api/v1/tools',
+      intentAnalyze: '/api/v1/agents/intent/analyze',
+      investigationRun: '/api/v1/agents/investigation/run',
     },
   });
 });
@@ -192,6 +195,59 @@ app.post('/api/v1/tools/verify', async (req: Request, res: Response) => {
   const { actionId, agentRunId } = req.body;
   const result = await VerificationTools.verifyAction(actionId, { agentRunId });
   return res.status(result.success ? 200 : 400).json(result);
+});
+
+// ----------------------------------------------------
+// PHASE 5: AGENT ENDPOINTS (/api/v1/agents/...)
+// ----------------------------------------------------
+
+// POST /api/v1/agents/intent/analyze
+app.post('/api/v1/agents/intent/analyze', async (req: Request, res: Response) => {
+  try {
+    const { ticketId, customerId, orderId, message, agentRunId } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'Customer message is required for intent analysis' });
+    }
+
+    const intent = await IntentAgent.analyze({
+      ticketId,
+      customerId,
+      orderId,
+      message,
+      agentRunId,
+    });
+
+    return res.json({ success: true, intent });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/v1/agents/investigation/run
+app.post('/api/v1/agents/investigation/run', async (req: Request, res: Response) => {
+  try {
+    const { intent, ticketId, customerId, orderId, message, agentRunId } = req.body;
+
+    let targetIntent = intent;
+    if (!targetIntent) {
+      if (!message) {
+        return res.status(400).json({ error: 'Either intent object or customer message is required for investigation' });
+      }
+      targetIntent = await IntentAgent.analyze({ ticketId, customerId, orderId, message, agentRunId });
+    }
+
+    const investigationResult = await InvestigationAgent.investigate({
+      intent: targetIntent,
+      ticketId,
+      customerId,
+      orderId,
+      agentRunId,
+    });
+
+    return res.json({ success: true, investigationResult });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {
