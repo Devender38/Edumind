@@ -136,8 +136,8 @@ model AgentTrace {
 
 model ToolExecution {
   id             String    @id @default(uuid())
-  agentRunId     String
-  agentRun       AgentRun  @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  agentRunId     String?
+  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
   toolName       String
   idempotencyKey String?   @unique
   input          String?   // JSON string
@@ -150,18 +150,18 @@ model ToolExecution {
 }
 
 model ActionRecord {
-  id                String   @id @default(uuid())
-  ticketId          String
-  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  agentRunId        String
-  agentRun          AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
-  actionType        String   // REFUND, REPLACEMENT, CANCELLATION, COUPON, ESCALATION, NOTIFICATION
-  status            String   @default("PENDING") // PENDING, EXECUTED, VERIFIED, FAILED
-  externalReference String?  // e.g. transactionId, replacementOrderId
+  id                String    @id @default(uuid())
+  ticketId          String?
+  ticket            Ticket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId        String?
+  agentRun          AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  actionType        String    // REFUND, REPLACEMENT, CANCELLATION, COUPON, ESCALATION, NOTIFICATION
+  status            String    @default("PENDING") // PENDING, EXECUTED, VERIFIED, FAILED
+  externalReference String?   // e.g. transactionId, replacementOrderId
   amount            Float?
-  metadata          String?  // JSON string
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  metadata          String?   // JSON string
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   verificationResults VerificationResult[]
 }
@@ -170,8 +170,8 @@ model VerificationResult {
   id            String       @id @default(uuid())
   actionId      String
   actionRecord  ActionRecord @relation(fields: [actionId], references: [id], onDelete: Cascade)
-  agentRunId    String
-  agentRun      AgentRun     @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  agentRunId    String?
+  agentRun      AgentRun?    @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
   status        String       @default("PENDING") // PENDING, SUCCESS, FAILED
   expectedState String?
   actualState   String?
@@ -183,8 +183,8 @@ model Escalation {
   id         String    @id @default(uuid())
   ticketId   String
   ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  agentRunId String
-  agentRun   AgentRun  @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  agentRunId String?
+  agentRun   AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
   reason     String
   priority   String    @default("HIGH") // LOW, MEDIUM, HIGH, URGENT
   status     String    @default("PENDING") // PENDING, ASSIGNED, RESOLVED

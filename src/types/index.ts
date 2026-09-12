@@ -83,3 +83,23 @@ export interface HealthCheckResponse {
   version: string;
   timestamp: string;
 }
+
+export interface ToolError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+export interface ToolMetadata {
+  toolName: string;
+  executionId?: string;
+  idempotencyKey?: string;
+}
+
+export interface ToolResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: ToolError;
+  metadata?: ToolMetadata;
+}
+

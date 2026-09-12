@@ -17,7 +17,7 @@ export interface AppendTraceInput {
 }
 
 export interface RecordToolExecutionInput {
-  agentRunId: string;
+  agentRunId?: string;
   toolName: string;
   idempotencyKey?: string;
   input?: Record<string, any> | string;
@@ -29,7 +29,7 @@ export interface RecordToolExecutionInput {
 
 export interface RecordActionInput {
   ticketId: string;
-  agentRunId: string;
+  agentRunId?: string;
   actionType: string;
   amount?: number;
   externalReference?: string;
@@ -38,7 +38,7 @@ export interface RecordActionInput {
 
 export interface RecordVerificationInput {
   actionId: string;
-  agentRunId: string;
+  agentRunId?: string;
   status: string; // SUCCESS, FAILED, PENDING
   expectedState?: string;
   actualState?: string;
@@ -132,9 +132,11 @@ export class AgentStateRepository {
     const inputStr = typeof data.input === 'object' ? JSON.stringify(data.input) : data.input;
     const outputStr = typeof data.output === 'object' ? JSON.stringify(data.output) : data.output;
 
+    const validAgentRunId = data.agentRunId && data.agentRunId !== 'standalone-execution' && data.agentRunId !== 'standalone-run' ? data.agentRunId : null;
+
     return prisma.toolExecution.create({
       data: {
-        agentRunId: data.agentRunId,
+        agentRunId: validAgentRunId,
         toolName: data.toolName,
         idempotencyKey: data.idempotencyKey,
         input: inputStr,
@@ -152,11 +154,12 @@ export class AgentStateRepository {
    */
   static async recordAction(data: RecordActionInput) {
     const metadataStr = typeof data.metadata === 'object' ? JSON.stringify(data.metadata) : data.metadata;
+    const validAgentRunId = data.agentRunId && data.agentRunId !== 'standalone-execution' && data.agentRunId !== 'standalone-run' ? data.agentRunId : null;
 
     return prisma.actionRecord.create({
       data: {
         ticketId: data.ticketId,
-        agentRunId: data.agentRunId,
+        agentRunId: validAgentRunId,
         actionType: data.actionType,
         amount: data.amount,
         externalReference: data.externalReference,
@@ -170,7 +173,6 @@ export class AgentStateRepository {
    * Record post-execution verification result
    */
   static async recordVerification(data: RecordVerificationInput) {
-    // Also update parent ActionRecord status
     if (data.status === 'SUCCESS') {
       await prisma.actionRecord.update({
         where: { id: data.actionId },
@@ -178,10 +180,12 @@ export class AgentStateRepository {
       });
     }
 
+    const validAgentRunId = data.agentRunId && data.agentRunId !== 'standalone-execution' && data.agentRunId !== 'standalone-run' ? data.agentRunId : null;
+
     return prisma.verificationResult.create({
       data: {
         actionId: data.actionId,
-        agentRunId: data.agentRunId,
+        agentRunId: validAgentRunId,
         status: data.status,
         expectedState: data.expectedState,
         actualState: data.actualState,
