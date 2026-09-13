@@ -1,12 +1,21 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { IntentAgent, InvestigationAgent } from '../src/agents/index.js';
 import { prisma } from '../src/db/client.js';
 import { seedDatabase } from '../prisma/seed.js';
+import { AIProviderRegistry } from '../src/ai/providers/AIProviderRegistry.js';
+import { AIProviderMode } from '../src/ai/types/AITypes.js';
+import { AIService } from '../src/ai/AIService.js';
 
 describe('ResolveX Phase 5 Intent & Investigation Agents Test Suite', () => {
   beforeAll(async () => {
     await prisma.$connect();
     await seedDatabase();
+  });
+
+  beforeEach(() => {
+    AIProviderRegistry.getInstance().resetAll();
+    AIProviderRegistry.getInstance().setMode(AIProviderMode.AI_SANDBOX);
+    AIService.resetCallCounts();
   });
 
   afterAll(async () => {

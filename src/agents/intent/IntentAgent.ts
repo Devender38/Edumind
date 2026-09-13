@@ -5,6 +5,9 @@ import {
   IntentEntities,
 } from '../../types/index.js';
 import { AgentStateRepository } from '../../db/repositories/agentStateRepository.js';
+import { AIService } from '../../ai/AIService.js';
+import { AIProviderMode } from '../../ai/types/AITypes.js';
+import { AIProviderRegistry } from '../../ai/providers/AIProviderRegistry.js';
 
 export interface IntentAgentInput {
   ticketId?: string;
@@ -12,6 +15,7 @@ export interface IntentAgentInput {
   orderId?: string;
   message: string;
   agentRunId?: string;
+  tenantId?: string;
 }
 
 export interface IntentClassifier {
@@ -44,8 +48,9 @@ export class DeterministicIntentClassifier implements IntentClassifier {
 
     // 2. Order ID Extraction (Strict matching: ord-xxx or explicit #ORD-xxx, NEVER hallucinated!)
     let orderId: string | undefined = input.orderId;
-    const orderMatch = input.message.match(/\b(ord-[a-z0-9-]+)\b/i) || input.message.match(/order\s*#?\s*([a-z0-9-]+)/i);
-    if (orderMatch) {
+    const stopWords = new Set(['has', 'is', 'was', 'my', 'for', 'with', 'about', 'status', 'details', 'number', 'id', 'problem', 'issue', 'a', 'the']);
+    const orderMatch = input.message.match(/\b(ord-[a-z0-9-]+)\b/i) || input.message.match(/order\s*#\s*([a-z0-9-]+)/i) || input.message.match(/order\s+([a-z0-9-]+)/i);
+    if (orderMatch && !stopWords.has(orderMatch[1].toLowerCase())) {
       orderId = orderMatch[1];
     }
 
@@ -92,6 +97,14 @@ export class DeterministicIntentClassifier implements IntentClassifier {
     } else if (text.includes('late') || text.includes('delay') || text.includes("hasn't arrived") || text.includes('where is my package')) {
       issueType = 'LATE_DELIVERY';
       reasoning = 'Customer inquired about delivery delay/status';
+    } else if (text.includes('refund') || text.includes('money back')) {
+      issueType = 'REFUND_REQUEST';
+      requestedResolution = 'REFUND';
+      reasoning = 'Customer requested order refund';
+    } else if (text.includes('replace') || text.includes('replacement')) {
+      issueType = 'REPLACEMENT_REQUEST';
+      requestedResolution = 'REPLACEMENT';
+      reasoning = 'Customer requested item replacement';
     } else if (text.includes('problem') || text.includes('issue') || text.includes('help')) {
       issueType = 'GENERAL_SUPPORT';
       confidence = 0.4;
@@ -104,7 +117,6 @@ export class DeterministicIntentClassifier implements IntentClassifier {
       missingInfo.push('issue_clarification');
     }
 
-    // Determine Requested Resolution if not set by issueType
     if (requestedResolution === 'UNKNOWN') {
       if (text.includes('refund') || text.includes('money back') || text.includes('pay back')) {
         requestedResolution = 'REFUND';
@@ -121,7 +133,6 @@ export class DeterministicIntentClassifier implements IntentClassifier {
       }
     }
 
-    // Urgency & Sentiment
     let urgency: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL';
     if (text.includes('urgent') || text.includes('immediately') || text.includes('asap')) {
       urgency = 'URGENT';
@@ -158,8 +169,133 @@ export class DeterministicIntentClassifier implements IntentClassifier {
   }
 }
 
+export class AIIntentClassifier implements IntentClassifier {
+  private fallbackClassifier = new DeterministicIntentClassifier();
+
+  async classify(input: IntentAgentInput): Promise<StructuredIntent> {
+    const mode = AIProviderRegistry.getInstance().getMode();
+    if (mode === AIProviderMode.AI_DISABLED) {
+      return this.fallbackClassifier.classify(input);
+    }
+
+    const aiRes = await AIService.classifyIntent(input.message, {
+      tenantId: input.tenantId || 'tenant-a',
+      agentRunId: input.agentRunId,
+      correlationId: `corr-${Date.now()}`,
+      orderId: input.orderId,
+      customerId: input.customerId,
+      ticketId: input.ticketId
+    });
+
+    const confidenceThreshold = Number(process.env.AI_CONFIDENCE_THRESHOLD) || 0.7;
+
+    if (!aiRes.success || !aiRes.data || aiRes.injectionDetected || aiRes.confidence < confidenceThreshold) {
+      // Safe fallback to deterministic classifier
+      const fallbackResult = await this.fallbackClassifier.classify(input);
+      if (aiRes.injectionDetected) {
+        fallbackResult.reasoningSummary = `[PROMPT_INJECTION_BLOCKED] ${fallbackResult.reasoningSummary}`;
+      }
+      return fallbackResult;
+    }
+
+    const aiData = aiRes.data;
+
+    // Map AI Intent String to System IssueType & RequestedResolution
+    let issueType: IssueType = 'GENERAL_SUPPORT';
+    let requestedResolution: RequestedResolution = 'NONE';
+
+    switch (aiData.intent) {
+      case 'REFUND':
+        issueType = 'REFUND_REQUEST';
+        requestedResolution = 'REFUND';
+        break;
+      case 'REPLACEMENT':
+        issueType = 'REPLACEMENT_REQUEST';
+        requestedResolution = 'REPLACEMENT';
+        break;
+      case 'CANCELLATION':
+        issueType = 'CANCELLATION_REQUEST';
+        requestedResolution = 'CANCELLATION';
+        break;
+      case 'DAMAGED_ITEM':
+        issueType = 'DAMAGED_ITEM';
+        requestedResolution = 'REPLACEMENT';
+        break;
+      case 'DEFECTIVE_ITEM':
+        issueType = 'DEFECTIVE_ITEM';
+        requestedResolution = 'REPLACEMENT';
+        break;
+      case 'MISSING_ITEM':
+        issueType = 'MISSING_ITEM';
+        requestedResolution = 'REPLACEMENT';
+        break;
+      case 'WRONG_ITEM':
+        issueType = 'WRONG_ITEM';
+        requestedResolution = 'REPLACEMENT';
+        break;
+      case 'LATE_DELIVERY':
+        issueType = 'LATE_DELIVERY';
+        requestedResolution = 'INFORMATION';
+        break;
+      case 'COUPON':
+        issueType = 'COUPON_REQUEST';
+        requestedResolution = 'COUPON';
+        break;
+      case 'UNKNOWN':
+        issueType = 'UNKNOWN';
+        requestedResolution = 'NONE';
+        break;
+      default:
+        issueType = 'GENERAL_SUPPORT';
+        requestedResolution = 'NONE';
+    }
+
+    const text = input.message.toLowerCase();
+    if (text.includes('refund') || text.includes('money back')) {
+      requestedResolution = 'REFUND';
+    } else if (text.includes('replace') || text.includes('replacement')) {
+      requestedResolution = 'REPLACEMENT';
+    }
+
+    // Combine extracted entities (untrusted) with input defaults
+    const entities: IntentEntities = {
+      customerId: input.customerId || aiData.entities.customerId,
+      orderId: input.orderId || aiData.entities.orderId,
+      productId: aiData.entities.productId,
+      amount: aiData.entities.amount,
+      currency: aiData.entities.currency || 'INR',
+      productName: aiData.entities.productName
+    };
+
+    const missingInfo: string[] = [];
+    if (!entities.orderId && !input.ticketId) {
+      missingInfo.push('orderId');
+    }
+    if (aiData.missingInformation && aiData.missingInformation.length > 0) {
+      for (const item of aiData.missingInformation) {
+        if (!missingInfo.includes(item)) {
+          missingInfo.push(item);
+        }
+      }
+    } else if (aiData.ambiguity) {
+      missingInfo.push('issue_clarification');
+    }
+
+    return {
+      issueType,
+      requestedResolution,
+      entities,
+      urgency: entities.amount && entities.amount > 10000 ? 'HIGH' : 'NORMAL',
+      sentiment: 'NEUTRAL',
+      confidence: aiData.confidence,
+      reasoningSummary: `[AI_ADVISORY] ${aiData.reasoning}`,
+      missingInformation: missingInfo,
+    };
+  }
+}
+
 export class IntentAgent {
-  private static defaultClassifier: IntentClassifier = new DeterministicIntentClassifier();
+  private static defaultClassifier: IntentClassifier = new AIIntentClassifier();
 
   static async analyze(
     input: IntentAgentInput,
@@ -168,13 +304,12 @@ export class IntentAgent {
     const classifier = customClassifier || this.defaultClassifier;
     const intent = await classifier.classify(input);
 
-    // Persist AgentTrace if agentRunId is provided
     if (input.agentRunId) {
       await AgentStateRepository.appendTrace({
         agentRunId: input.agentRunId,
         step: 'INTENT_CLASSIFICATION',
         type: 'INTENT',
-        title: 'Customer Intent Understanding',
+        title: 'Customer Intent Understanding (AI Advisory)',
         description: `Classified Issue: ${intent.issueType}, Resolution: ${intent.requestedResolution} (Confidence: ${(intent.confidence * 100).toFixed(0)}%)`,
         input: { message: input.message, ticketId: input.ticketId },
         output: intent,

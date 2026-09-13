@@ -88,6 +88,13 @@ export class InvestigationAgent {
           isObservedFact: true,
           timestamp: new Date().toISOString(),
         });
+        if (customerData.riskScore >= 0.5) {
+          eligibilitySignals.push({
+            signal: 'FRAUD_RISK_FLAG',
+            status: 'REQUIRES_APPROVAL',
+            details: `Customer risk score is ${customerData.riskScore} (>= 0.5 threshold); manager approval required.`,
+          });
+        }
       }
 
       const historyRes = await this.safeExecuteTool('getCustomerHistory', { customerId: targetCustomerId }, input.agentRunId);

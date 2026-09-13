@@ -2,9 +2,9 @@ import { prisma } from '../client.js';
 
 export class DomainRepository {
   // Customer Queries
-  static async getCustomerById(id: string) {
-    return prisma.customer.findUnique({
-      where: { id },
+  static async getCustomerById(id: string, tenantId?: string) {
+    return prisma.customer.findFirst({
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         orders: true,
         tickets: true,
@@ -14,9 +14,9 @@ export class DomainRepository {
   }
 
   // Order Queries
-  static async getOrderById(id: string) {
-    return prisma.order.findUnique({
-      where: { id },
+  static async getOrderById(id: string, tenantId?: string) {
+    return prisma.order.findFirst({
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         customer: true,
         items: {
@@ -35,9 +35,9 @@ export class DomainRepository {
   }
 
   // Ticket Queries
-  static async getTicketById(id: string) {
-    return prisma.ticket.findUnique({
-      where: { id },
+  static async getTicketById(id: string, tenantId?: string) {
+    return prisma.ticket.findFirst({
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         customer: true,
         order: {

@@ -1,0 +1,53 @@
+name: ResolveX Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, release/* ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-and-test:
+    name: Build, Audit & Test Matrix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Production & Dev Dependencies
+        run: npm ci
+
+      - name: TypeScript Static Code Type Checking
+        run: npx tsc --noEmit
+
+      - name: Security & Secret Leakage Audit Check
+        run: |
+          echo "Checking for committed production secrets..."
+          if grep -rn "RESOLVEX_AUTH_SECRET=supersecret" .env*; then
+            echo "❌ Insecure production secret found in committed env files!"
+            exit 1
+          fi
+
+      - name: Compile Backend & Build Frontend Artifacts
+        run: npm run build
+
+      - name: Initialize Database Schema & Seed Verification
+        run: |
+          npx prisma db push --accept-data-loss
+          npm run db:seed
+
+      - name: Execute Full Vitest Automated Test Suite
+        run: npx vitest run --fileParallelism=false
+
+      - name: Execute Autonomous Agent Golden Evaluation Runner
+        run: npm run evaluate
+
+      - name: Validate Container Dockerfile Build Compatibility
+        run: docker build -t resolvex-app:ci-check .

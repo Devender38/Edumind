@@ -3,6 +3,7 @@ import { DomainRepository } from '../db/repositories/domainRepository.js';
 import { PolicyTools } from './policyTools.js';
 import { prisma } from '../db/client.js';
 import { ToolResult } from '../types/index.js';
+import { FailureInjector } from '../utils/failureInjector.js';
 
 export class ActionTools {
   /**
@@ -17,9 +18,52 @@ export class ActionTools {
   ): Promise<ToolResult> {
     const opts = { ...options, idempotencyKey };
 
+    FailureInjector.checkAndInject('BEFORE_TOOL', 'issueRefund', { orderId, amount, idempotencyKey });
+
     // Idempotency check
     const existingResult = await BaseTool.checkIdempotency(idempotencyKey, 'issueRefund');
     if (existingResult) return existingResult;
+
+    // Ground-Truth DB Idempotency check before policy evaluation
+    const existingTx = await prisma.refundTransaction.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existingTx) {
+      let actionRecord = await prisma.actionRecord.findFirst({
+        where: {
+          OR: [
+            { externalReference: existingTx.id },
+            { metadata: { contains: idempotencyKey } },
+          ],
+        },
+      });
+
+      if (!actionRecord) {
+        const ticket = await prisma.ticket.findFirst({ where: { orderId } });
+        const validAgentRunId = options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null;
+        actionRecord = await prisma.actionRecord.create({
+          data: {
+            ticketId: ticket?.id || null,
+            agentRunId: validAgentRunId,
+            actionType: 'REFUND',
+            status: 'EXECUTED',
+            externalReference: existingTx.id,
+            amount: existingTx.amount,
+            metadata: JSON.stringify({ orderId, reason, idempotencyKey }),
+          },
+        });
+      }
+
+      return BaseTool.formatSuccess('issueRefund', {
+        refundTransactionId: existingTx.id,
+        actionId: actionRecord.id,
+        orderId: existingTx.orderId,
+        amount: existingTx.amount,
+        status: 'COMPLETED',
+        idempotencyKey,
+        reconciled: true,
+      }, opts, { orderId, amount, reason });
+    }
 
     // Validate inputs
     if (!orderId || !amount || amount <= 0 || !idempotencyKey) {
@@ -74,6 +118,11 @@ export class ActionTools {
         return { refundTx, actionRecord };
       });
 
+      FailureInjector.checkAndInject('AFTER_ACTION_MUTATION', 'issueRefund', {
+        refundTransactionId: transactionResult.refundTx.id,
+        orderId: order.id,
+      });
+
       return BaseTool.formatSuccess('issueRefund', {
         refundTransactionId: transactionResult.refundTx.id,
         actionId: transactionResult.actionRecord.id,
@@ -83,7 +132,48 @@ export class ActionTools {
         idempotencyKey,
       }, opts, { orderId, amount, reason });
     } catch (err: any) {
+      if (err.message?.includes('INJECTED_FAILURE')) {
+        throw err;
+      }
       if (err.code === 'P2002') {
+        const existingTx = await prisma.refundTransaction.findUnique({
+          where: { idempotencyKey },
+        });
+        if (existingTx) {
+          let actionRecord = await prisma.actionRecord.findFirst({
+            where: {
+              OR: [
+                { externalReference: existingTx.id },
+                { metadata: { contains: idempotencyKey } },
+              ],
+            },
+          });
+
+          if (!actionRecord) {
+            const ticket = await prisma.ticket.findFirst({ where: { orderId: order.id } });
+            actionRecord = await prisma.actionRecord.create({
+              data: {
+                ticketId: ticket?.id || null,
+                agentRunId: options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null,
+                actionType: 'REFUND',
+                status: 'EXECUTED',
+                externalReference: existingTx.id,
+                amount: existingTx.amount,
+                metadata: JSON.stringify({ orderId, reason, idempotencyKey }),
+              },
+            });
+          }
+
+          return BaseTool.formatSuccess('issueRefund', {
+            refundTransactionId: existingTx.id,
+            actionId: actionRecord.id,
+            orderId: order.id,
+            amount: existingTx.amount,
+            status: 'COMPLETED',
+            idempotencyKey,
+            reconciled: true,
+          }, opts, { orderId, amount, reason });
+        }
         return BaseTool.formatError('issueRefund', 'IDEMPOTENT_DUPLICATE', 'Refund transaction with this idempotency key already processed', false, opts, { orderId, amount });
       }
       return BaseTool.formatError('issueRefund', 'REFUND_FAILED', err.message || 'Refund processing failed', false, opts, { orderId, amount });
@@ -173,6 +263,11 @@ export class ActionTools {
         return { newReplacementOrder, actionRecord, remainingStock: updatedProduct.stockQuantity };
       });
 
+      FailureInjector.checkAndInject('AFTER_ACTION_MUTATION', 'createReplacement', {
+        replacementOrderId: transactionResult.newReplacementOrder.id,
+        orderId: order.id,
+      });
+
       return BaseTool.formatSuccess('createReplacement', {
         replacementOrderId: transactionResult.newReplacementOrder.id,
         actionId: transactionResult.actionRecord.id,
@@ -184,6 +279,22 @@ export class ActionTools {
         idempotencyKey,
       }, opts, { orderId, replacementProductId, reason });
     } catch (err: any) {
+      // Reconcile existing replacement action if already created
+      const existingAction = await prisma.actionRecord.findFirst({
+        where: { actionType: 'REPLACEMENT', metadata: { contains: idempotencyKey } },
+      });
+      if (existingAction) {
+        return BaseTool.formatSuccess('createReplacement', {
+          replacementOrderId: existingAction.externalReference || 'rec-reconciled',
+          actionId: existingAction.id,
+          originalOrderId: order.id,
+          replacementProductId: product.id,
+          status: 'PROCESSING',
+          idempotencyKey,
+          reconciled: true,
+        }, opts, { orderId, replacementProductId, reason });
+      }
+
       return BaseTool.formatError('createReplacement', 'REPLACEMENT_FAILED', err.message || 'Failed to create replacement order', false, opts, { orderId, replacementProductId });
     }
   }
@@ -428,23 +539,40 @@ export class ActionTools {
       return BaseTool.formatError('sendNotification', 'TICKET_NOT_FOUND', `Ticket ${ticketId} not found`, false, opts, { ticketId });
     }
 
+    // Map legacy 'type' to new Phase 19 schema fields
+    const channel = type === 'EMAIL' ? 'EMAIL' : 'IN_APP';
+    const eventType = 'CASE_CREATED'; // Legacy tool always signals case creation
+    const notificationKey = idempotencyKey || `tool-notif-${ticketId}-${Date.now()}`;
+
     const notification = await prisma.notification.create({
       data: {
+        tenantId: (ticket as any).tenantId || 'tenant-a',
         ticketId,
         customerId: ticket.customerId,
-        type,
-        recipient: ticket.customer.email,
+        eventType,
+        channel,
+        templateId: 'tool-notification-legacy',
+        templateVersion: 'v1',
+        locale: 'en-IN',
+        recipientType: 'CUSTOMER',
+        recipient: ticket.customer?.email || ticket.customerId,
+        title: 'Notification',
         message,
         status: 'SENT',
+        idempotencyKey: notificationKey,
+        sentAt: new Date(),
+        attempts: 1,
+        maxAttempts: 3,
       },
     });
 
     return BaseTool.formatSuccess('sendNotification', {
       notificationId: notification.id,
       recipient: notification.recipient,
-      type: notification.type,
+      channel: notification.channel,
       status: notification.status,
       idempotencyKey,
     }, opts, { ticketId, type, message });
   }
 }
+

@@ -1,0 +1,425 @@
+// ResolveX Autonomous Customer Resolution Agent — PostgreSQL Production Schema
+// This file is the PRODUCTION schema for PostgreSQL deployment.
+// For development/testing, use prisma/schema.prisma (SQLite).
+// Migration command: npx prisma migrate deploy --schema=prisma/schema.pg.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client-pg"
+  binaryTargets   = ["native"]
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  tenantId    String   @default("tenant-a")
+  name        String
+  email       String   @unique
+  tier        String   @default("STANDARD") // STANDARD, VIP, PREMIUM
+  riskScore   Float    @default(0.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders        Order[]
+  tickets       Ticket[]
+  coupons       Coupon[]
+  notifications Notification[]
+}
+
+model Product {
+  id                  String   @id @default(uuid())
+  name                String
+  category            String
+  price               Float
+  stockQuantity       Int      @default(0)
+  replacementEligible Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id             String    @id @default(uuid())
+  tenantId       String    @default("tenant-a")
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status         String    @default("PROCESSING") // PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
+  totalAmount    Float
+  currency       String    @default("INR")
+  deliveryDate   DateTime?
+  shippingStatus String    @default("PENDING") // PENDING, DISPATCHED, DELIVERED, RETURNED
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items   OrderItem[]
+  tickets Ticket[]
+  refunds RefundTransaction[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1)
+  unitPrice Float
+
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id              String   @id @default(uuid())
+  tenantId        String   @default("tenant-a")
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId         String?
+  order           Order?   @relation(fields: [orderId], references: [id])
+  issueType       String   // DAMAGED, NOT_RECEIVED, WRONG_ITEM, CANCEL_REQUEST
+  customerMessage String
+  status          String   @default("OPEN") // OPEN, INVESTIGATING, ACTION_PENDING, VERIFYING, RESOLVED, ESCALATED, FAILED
+  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  resolutionType  String?  // REFUND, REPLACEMENT, CANCEL, GOODWILL_COUPON, ESCALATED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agentRuns     AgentRun[]
+  actionRecords ActionRecord[]
+  escalations   Escalation[]
+  notifications Notification[]
+}
+
+model Policy {
+  id               String          @id @default(uuid())
+  tenantId         String          @default("tenant-a")
+  policyKey        String          @default("DEFAULT")
+  name             String
+  description      String?
+  issueType        String          // DAMAGED, NOT_RECEIVED, WRONG_ITEM, CANCEL_REQUEST
+  actionType       String          // REFUND, REPLACEMENT, CANCEL, GOODWILL_COUPON
+  conditions       String          // JSON string of conditions
+  approvalRequired Boolean         @default(false)
+  priority         Int             @default(1)
+  active           Boolean         @default(true)
+  status           String          @default("ACTIVE") // DRAFT, PENDING_APPROVAL, APPROVED, ACTIVE, RETIRED
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  versions         PolicyVersion[]
+
+  @@index([tenantId, active])
+  @@index([tenantId, policyKey])
+}
+
+model PolicyVersion {
+  id               String    @id @default(uuid())
+  policyId         String
+  policy           Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  version          Int       @default(1)
+  status           String    @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, ACTIVE, RETIRED, REJECTED
+  effectiveFrom    DateTime?
+  effectiveUntil   DateTime?
+  name             String?
+  issueType        String    @default("DAMAGED")
+  actionType       String    @default("REFUND")
+  definition       String    // JSON string containing full policy definition & conditions
+  approvalRequired Boolean   @default(false)
+  priority         Int       @default(1)
+  createdBy        String    @default("system")
+  submittedBy      String?
+  submittedAt      DateTime?
+  approvedBy       String?
+  approvedAt       DateTime?
+  activatedBy      String?
+  activatedAt      DateTime?
+  retiredBy        String?
+  retiredAt        DateTime?
+  changeSummary    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([policyId, version])
+  @@index([policyId, status])
+  @@index([status, effectiveFrom, effectiveUntil])
+}
+
+model AgentRun {
+  id              String    @id @default(uuid())
+  tenantId        String    @default("tenant-a")
+  correlationId   String?
+  ticketId        String
+  ticket          Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  goal            String
+  status          String    @default("PLANNING") // PLANNING, INVESTIGATING, DECIDING, ACTING, VERIFYING, REPLANNING, RESOLVED, ESCALATED, FAILED
+  currentStep     String    @default("GOAL_RECEIVED")
+  decision        String?
+  finalResolution String?
+  failureReason   String?
+  pinnedPolicies  String?   // JSON snapshot of pinned PolicyVersions evaluated during run
+  replanCount     Int       @default(0)
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  traces                AgentTrace[]
+  toolExecutions        ToolExecution[]
+  actionRecords         ActionRecord[]
+  verificationResults   VerificationResult[]
+  escalations           Escalation[]
+  executionJobs         ExecutionJob[]
+  notifications         Notification[]
+  integrationOperations IntegrationOperation[]
+
+  @@index([tenantId, status])
+  @@index([ticketId])
+}
+
+model ExecutionJob {
+  id              String    @id @default(uuid())
+  agentRunId      String
+  agentRun        AgentRun  @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  tenantId        String    @default("tenant-a")
+  status          String    @default("QUEUED") // QUEUED, RUNNING, WAITING, COMPLETED, FAILED, CANCELLED
+  workerId        String?
+  leaseUntil      DateTime?
+  lastHeartbeatAt DateTime?
+  leaseGeneration Int       @default(0)
+  idempotencyKey  String?   @unique
+  attempt         Int       @default(0)
+  maxAttempts     Int       @default(3)
+  correlationId   String?
+  errorCode       String?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, leaseUntil])
+  @@index([tenantId, status])
+  @@index([agentRunId])
+}
+
+model AgentTrace {
+  id          String   @id @default(uuid())
+  agentRunId  String
+  agentRun    AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  step        String
+  type        String
+  title       String
+  description String?
+  status      String   @default("SUCCESS")
+  input       String?  // JSON string
+  output      String?  // JSON string
+  timestamp   DateTime @default(now())
+
+  @@index([agentRunId])
+}
+
+model ToolExecution {
+  id             String    @id @default(uuid())
+  agentRunId     String?
+  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  toolName       String
+  idempotencyKey String?   @unique
+  input          String?   // JSON string
+  output         String?   // JSON string
+  status         String    @default("PENDING")
+  error          String?
+  attempt        Int       @default(1)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+}
+
+model ActionRecord {
+  id                String    @id @default(uuid())
+  ticketId          String?
+  ticket            Ticket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId        String?
+  agentRun          AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  actionType        String
+  status            String    @default("PENDING")
+  externalReference String?
+  amount            Float?
+  metadata          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  verificationResults VerificationResult[]
+}
+
+model VerificationResult {
+  id            String       @id @default(uuid())
+  actionId      String
+  actionRecord  ActionRecord @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  agentRunId    String?
+  agentRun      AgentRun?    @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  status        String       @default("PENDING")
+  expectedState String?
+  actualState   String?
+  message       String?
+  verifiedAt    DateTime     @default(now())
+}
+
+model Escalation {
+  id         String    @id @default(uuid())
+  ticketId   String
+  ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId String?
+  agentRun   AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  reason     String
+  priority   String    @default("HIGH")
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+}
+
+model Notification {
+  id              String    @id @default(uuid())
+  tenantId        String    @default("tenant-a")
+  agentRunId      String?
+  agentRun        AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  ticketId        String?
+  ticket          Ticket?   @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  eventType       String
+  channel         String    @default("IN_APP")
+  templateId      String
+  templateVersion String    @default("v1")
+  locale          String    @default("en-IN")
+  recipientType   String    @default("CUSTOMER")
+  recipient       String
+  title           String
+  message         String
+  payload         String?
+  status          String    @default("QUEUED")
+  idempotencyKey  String    @unique
+  correlationId   String?
+  isRead          Boolean   @default(false)
+  readAt          DateTime?
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(3)
+  lastAttemptAt   DateTime?
+  sentAt          DateTime?
+  errorCode       String?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([agentRunId])
+  @@index([customerId, isRead])
+  @@index([recipientType, tenantId, status])
+  @@index([createdAt])
+}
+
+model RefundTransaction {
+  id             String   @id @default(uuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount         Float
+  reason         String
+  idempotencyKey String   @unique
+  status         String   @default("COMPLETED")
+  createdAt      DateTime @default(now())
+}
+
+model Coupon {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code       String   @unique
+  discount   Float
+  expiryDate DateTime
+  isUsed     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Incident {
+  id                String    @id @default(uuid())
+  tenantId          String    @default("tenant-a")
+  incidentKey       String    @unique
+  severity          String    @default("HIGH")
+  title             String
+  description       String
+  status            String    @default("OPEN")
+  affectedComponent String    @default("ENGINE")
+  sourceAlertId     String?
+  correlationIds    String?
+  runIds            String?
+  caseIds           String?
+  timeline          String?
+  openedAt          DateTime  @default(now())
+  acknowledgedAt    DateTime?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([severity, status])
+  @@index([createdAt])
+}
+
+model AlertState {
+  id          String    @id @default(uuid())
+  tenantId    String    @default("tenant-a")
+  fingerprint String    @unique
+  alertKey    String
+  severity    String    @default("WARNING")
+  status      String    @default("NORMAL")
+  lastFiredAt DateTime  @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([fingerprint])
+}
+
+model IntegrationOperation {
+  id                  String    @id @default(uuid())
+  tenantId            String    @default("tenant-a")
+  agentRunId          String?
+  actionId            String?
+  provider            String
+  integrationType     String    // ORDERS, PAYMENTS, INVENTORY, SHIPPING, CRM, NOTIFICATIONS
+  operationType       String    // REFUND, CANCEL, REPLACE, STOCK_CHECK, CASE_SYNC, NOTIFY
+  resourceType        String?
+  resourceId          String?
+  idempotencyKey      String    @unique
+  providerRequestId   String?
+  providerOperationId String?
+  status              String    // PENDING, EXECUTED, VERIFIED, FAILED, TIMEOUT, UNKNOWN_OUTCOME, REJECTED
+  attempt             Int       @default(1)
+  lastErrorClass      String?
+  lastErrorMessage    String?   // Redacted
+  requestPayload      String?   // JSON (redacted)
+  responsePayload     String?   // JSON (redacted)
+  verificationStatus  String?   // PENDING, PASSED, FAILED, UNKNOWN
+  verifiedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  agentRun            AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, provider])
+  @@index([agentRunId])
+  @@index([status])
+}
+
+model IntegrationCircuitState {
+  id                  String    @id @default(uuid())
+  provider            String    @unique
+  state               String    @default("CLOSED") // CLOSED, OPEN, HALF_OPEN
+  consecutiveFailures Int       @default(0)
+  lastFailureAt       DateTime?
+  lastStateChange     DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}

@@ -55,11 +55,16 @@ export class PolicyTools {
     let eligible = true;
     let reason = `Grounded by policy: ${primaryPolicy.name}`;
 
-    // Apply deterministic condition evaluation
+    let approvalRequired = primaryPolicy.approvalRequired;
     if (parsedConditions.maxAutoRefundAmount && context?.amount) {
-      if (context.amount > parsedConditions.maxAutoRefundAmount && !primaryPolicy.approvalRequired) {
-        eligible = false;
-        reason = `Requested amount ₹${context.amount} exceeds auto-approval limit of ₹${parsedConditions.maxAutoRefundAmount}`;
+      if (context.amount <= parsedConditions.maxAutoRefundAmount) {
+        approvalRequired = false;
+      } else {
+        approvalRequired = true;
+        if (!primaryPolicy.approvalRequired) {
+          eligible = false;
+          reason = `Requested amount ₹${context.amount} exceeds auto-approval limit of ₹${parsedConditions.maxAutoRefundAmount}`;
+        }
       }
     }
 
@@ -67,7 +72,7 @@ export class PolicyTools {
       eligible,
       policyId: primaryPolicy.id,
       policyName: primaryPolicy.name,
-      approvalRequired: primaryPolicy.approvalRequired,
+      approvalRequired,
       reason,
       constraints: parsedConditions,
     }, options, { issueType, actionType, context });

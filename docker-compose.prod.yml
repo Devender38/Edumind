@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: resolvex-postgres
+    environment:
+      POSTGRES_USER: resolvex
+      POSTGRES_PASSWORD: resolvex_secure_production_password_32chars!
+      POSTGRES_DB: resolvex
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolvex -d resolvex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - resolvex-internal
+
+  resolvex-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: resolvex-production-app
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://resolvex:resolvex_secure_production_password_32chars!@postgres:5432/resolvex?schema=public
+      - RESOLVEX_AUTH_SECRET=${RESOLVEX_AUTH_SECRET}
+      - CLIENT_URL=${CLIENT_URL:-https://app.resolvex.tech}
+      - RESOLVEX_WORKER_CONCURRENCY=${RESOLVEX_WORKER_CONCURRENCY:-5}
+      - SHUTDOWN_GRACE_MS=${SHUTDOWN_GRACE_MS:-30000}
+      - RESOLVEX_VERSION=${RESOLVEX_VERSION:-24.0.0}
+      - RESOLVEX_COMMIT_SHA=${RESOLVEX_COMMIT_SHA:-production-deployment}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/v1/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - resolvex-internal
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  resolvex-internal:
+    driver: bridge
+
+volumes:
+  postgres_data:

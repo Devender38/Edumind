@@ -2,6 +2,7 @@ import { BaseTool, BaseToolOptions } from './base.js';
 import { AgentStateRepository } from '../db/repositories/agentStateRepository.js';
 import { prisma } from '../db/client.js';
 import { ToolResult } from '../types/index.js';
+import { FailureInjector } from '../utils/failureInjector.js';
 
 export class VerificationTools {
   /**
@@ -9,6 +10,21 @@ export class VerificationTools {
    * Ground-Truth Database State Verification
    */
   static async verifyAction(actionId: string, options?: BaseToolOptions): Promise<ToolResult> {
+    try {
+      FailureInjector.checkAndInject('AFTER_VERIFICATION', 'verifyAction', { actionId });
+      FailureInjector.checkAndInject('AFTER_VERIFICATION', 'verifyGroundTruth', { actionId });
+    } catch (err: any) {
+      if (err.message?.includes('INJECTED_FAILURE')) {
+        return BaseTool.formatSuccess('verifyAction', {
+          actionId,
+          verified: false,
+          expectedState: 'VERIFIED',
+          actualState: 'INJECTED_VERIFICATION_FAILURE',
+          message: 'Injected verification failure trigger: Ground truth DB state contradiction detected.',
+        }, options, { actionId });
+      }
+    }
+
     const actionRecord = await prisma.actionRecord.findUnique({
       where: { id: actionId },
       include: { ticket: true },
