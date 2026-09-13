@@ -25,7 +25,7 @@ services:
     name: resolvex-backend
     runtime: node
     plan: free
-    buildCommand: npm install && npm run db:generate:pg && npm run db:migrate:prod && npm run build:backend
+    buildCommand: npm install --include=dev && npm run db:generate:pg && npm run db:migrate:prod && npm run build:backend
     startCommand: npm run start
     healthCheckPath: /api/v1/health
     envVars:
@@ -67,7 +67,7 @@ services:
   - type: web
     name: resolvex-frontend
     runtime: static
-    buildCommand: npm run build:frontend
+    buildCommand: npm install --include=dev && npm run build:frontend
     staticPublishPath: ./dist
     routes:
       - type: rewrite
