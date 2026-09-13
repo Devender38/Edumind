@@ -14,7 +14,7 @@ databases:
   - name: resolvex-db
     databaseName: resolvex_prod
     user: resolvex_user
-    plan: starter
+    plan: free
     ipAllowList: [] # Private network only — not publicly exposed
 
 services:
@@ -24,7 +24,7 @@ services:
   - type: web
     name: resolvex-backend
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install && npm run db:generate:pg && npm run db:migrate:prod && npm run build:backend
     startCommand: npm run start
     healthCheckPath: /api/v1/health
@@ -67,6 +67,7 @@ services:
   - type: web
     name: resolvex-frontend
     runtime: static
+    plan: free
     buildCommand: npm run build:frontend
     staticPublishPath: ./dist
     routes:
