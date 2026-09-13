@@ -14,6 +14,7 @@ import { NotificationsPanel } from './components/NotificationsPanel';
 
 import { PolicyGovernancePanel } from './components/PolicyGovernancePanel';
 import { CustomerDashboard } from './components/CustomerDashboard';
+import { getApiUrl } from './config/apiConfig';
 
 export default function App() {
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
@@ -37,7 +38,7 @@ export default function App() {
 
   // Fetch Health Check on Load
   useEffect(() => {
-    fetch('/api/v1/health')
+    fetch(getApiUrl('/api/v1/health'))
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -76,7 +77,7 @@ export default function App() {
     setTraces([]);
 
     try {
-      const response = await fetch('/api/v1/agents/run', {
+      const response = await fetch(getApiUrl('/api/v1/agents/run'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function App() {
 
         // Fetch full traces if agentRunId is returned
         if (data.orchestrationResult.agentRunId) {
-          fetch(`/api/v1/agent-runs/${data.orchestrationResult.agentRunId}`)
+          fetch(getApiUrl(`/api/v1/agent-runs/${data.orchestrationResult.agentRunId}`))
             .then((r) => r.json())
             .then((runData) => {
               if (runData && runData.traces) {
@@ -122,7 +123,7 @@ export default function App() {
 
   // Helper to fetch updated traces
   const fetchTraces = (agentRunId: string) => {
-    fetch(`/api/v1/agent-runs/${agentRunId}`)
+    fetch(getApiUrl(`/api/v1/agent-runs/${agentRunId}`))
       .then((r) => r.json())
       .then((runData) => {
         if (runData && runData.traces) {
@@ -139,7 +140,7 @@ export default function App() {
     setRunError(null);
 
     try {
-      const response = await fetch(`/api/v1/agents/runs/${result.agentRunId}/approve`, {
+      const response = await fetch(getApiUrl(`/api/v1/agents/runs/${result.agentRunId}/approve`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -168,7 +169,7 @@ export default function App() {
     setRunError(null);
 
     try {
-      const response = await fetch(`/api/v1/agents/runs/${result.agentRunId}/consent`, {
+      const response = await fetch(getApiUrl(`/api/v1/agents/runs/${result.agentRunId}/consent`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ consentGiven }),

@@ -2,6 +2,7 @@
 // Glassmorphism design consistent with existing dashboard UI
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { getApiUrl } from '../config/apiConfig';
 
 interface NotificationItem {
   id: string;
@@ -57,7 +58,7 @@ export function NotificationsPanel({ authToken = 'customer-a-token' }: Notificat
     setError(null);
     try {
       const params = filter === 'UNREAD' ? '?unreadOnly=true' : '';
-      const res = await fetch(`/api/v1/notifications${params}`, {
+      const res = await fetch(getApiUrl(`/api/v1/notifications${params}`), {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -78,7 +79,7 @@ export function NotificationsPanel({ authToken = 'customer-a-token' }: Notificat
   const handleMarkRead = async (notifId: string) => {
     setMarkingRead(notifId);
     try {
-      const res = await fetch(`/api/v1/notifications/${notifId}/read`, {
+      const res = await fetch(getApiUrl(`/api/v1/notifications/${notifId}/read`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
       });

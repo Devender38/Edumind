@@ -1,6 +1,7 @@
 // ResolveX Phase 21 — Customer Case Management Dashboard Component
 
 import React, { useEffect, useState } from 'react';
+import { getApiUrl } from '../config/apiConfig';
 
 export interface CustomerCase {
   id: string;
@@ -38,7 +39,7 @@ export const CustomerDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/cases?search=${encodeURIComponent(search)}`, {
+      const res = await fetch(getApiUrl(`/api/v1/cases?search=${encodeURIComponent(search)}`), {
         headers: {
           'Authorization': 'Bearer customer-token-standard',
           'x-tenant-id': 'tenant-a',
@@ -67,7 +68,7 @@ export const CustomerDashboard: React.FC = () => {
     setTimelineLoading(true);
     setTimeline([]);
     try {
-      const res = await fetch(`/api/v1/cases/${caseId}/timeline`, {
+      const res = await fetch(getApiUrl(`/api/v1/cases/${caseId}/timeline`), {
         headers: {
           'Authorization': 'Bearer customer-token-standard',
           'x-tenant-id': 'tenant-a',
@@ -87,7 +88,7 @@ export const CustomerDashboard: React.FC = () => {
 
   const handleGiveConsent = async (caseId: string, consent: boolean) => {
     try {
-      const res = await fetch(`/api/v1/agents/runs/${caseId}/consent`, {
+      const res = await fetch(getApiUrl(`/api/v1/agents/runs/${caseId}/consent`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

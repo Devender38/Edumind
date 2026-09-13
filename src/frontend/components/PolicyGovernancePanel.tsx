@@ -1,6 +1,7 @@
 // ResolveX Phase 20 — Policy Governance, Versioning & Change Control Dashboard Component
 
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../config/apiConfig';
 import {
   FileText,
   CheckCircle,
@@ -56,7 +57,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const fetchPolicies = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/policies', { headers });
+      const res = await fetch(getApiUrl('/api/v1/policies'), { headers });
       const data = await res.json();
       if (data.success) {
         setPolicies(data.policies || []);
@@ -93,7 +94,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleCreatePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/v1/policies', {
+      const res = await fetch(getApiUrl('/api/v1/policies'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -122,7 +123,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleCreateDraftVersion = async (maxRefund: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions`), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -145,7 +146,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleSubmitVersion = async (versionNum: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/submit`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/submit`), {
         method: 'POST',
         headers,
       });
@@ -164,7 +165,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleApproveVersion = async (versionNum: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/approve`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/approve`), {
         method: 'POST',
         headers,
         body: JSON.stringify({ allowSelfApprove: role === 'ADMIN' }),
@@ -184,7 +185,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleActivateVersion = async (versionNum: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/activate`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/activate`), {
         method: 'POST',
         headers,
       });
@@ -203,7 +204,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleRollback = async (versionNum: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/rollback`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions/${versionNum}/rollback`), {
         method: 'POST',
         headers,
       });
@@ -222,7 +223,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handlePreviewEvaluation = async () => {
     if (!selectedPolicy || !selectedVersion) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/versions/${selectedVersion.version}/evaluate`, {
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/versions/${selectedVersion.version}/evaluate`), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -253,7 +254,7 @@ export const PolicyGovernancePanel: React.FC<PolicyGovernancePanelProps> = ({ to
   const handleFetchDiff = async (v1: number, v2: number) => {
     if (!selectedPolicy) return;
     try {
-      const res = await fetch(`/api/v1/policies/${selectedPolicy.id}/diff?v1=${v1}&v2=${v2}`, { headers });
+      const res = await fetch(getApiUrl(`/api/v1/policies/${selectedPolicy.id}/diff?v1=${v1}&v2=${v2}`), { headers });
       const data = await res.json();
       if (data.success) {
         setDiffData(data.diff);

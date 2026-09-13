@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Clock, Filter, Layers, RefreshCw, ShieldCheck, UserCheck, Search, FileText } from 'lucide-react';
 import { OperatorRunSummary, OperatorRunDetail, StaleRunHealthReport } from '../../types/index';
+import { getApiUrl } from '../config/apiConfig';
 
 interface OperatorDashboardProps {
   activeRunId?: string;
@@ -26,7 +27,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
     setRefreshing(true);
     try {
       // Fetch System Health & Stale Runs Report
-      const healthRes = await fetch('/api/v1/ops/health/runs');
+      const healthRes = await fetch(getApiUrl('/api/v1/ops/health/runs'));
       if (healthRes.ok) {
         const healthData = await healthRes.json();
         if (healthData.success) {
@@ -35,7 +36,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
       }
 
       // Fetch Runs List
-      const runsRes = await fetch('/api/v1/ops/runs?limit=50');
+      const runsRes = await fetch(getApiUrl('/api/v1/ops/runs?limit=50'));
       if (runsRes.ok) {
         const runsData = await runsRes.json();
         if (runsData.success) {
@@ -44,7 +45,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
       }
 
       // Fetch Evaluation Report
-      const evalRes = await fetch('/api/v1/evaluation/latest');
+      const evalRes = await fetch(getApiUrl('/api/v1/evaluation/latest'));
       if (evalRes.ok) {
         const evalData = await evalRes.json();
         if (evalData.success) {
@@ -53,7 +54,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
       }
 
       // Fetch Execution Worker Metrics
-      const execRes = await fetch('/api/v1/ops/execution/status');
+      const execRes = await fetch(getApiUrl('/api/v1/ops/execution/status'));
       if (execRes.ok) {
         const execData = await execRes.json();
         if (execData.success) {
@@ -61,7 +62,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
         }
       }
       // Fetch Notification Delivery Metrics (Phase 19)
-      const notifRes = await fetch('/api/v1/ops/notifications/metrics', {
+      const notifRes = await fetch(getApiUrl('/api/v1/ops/notifications/metrics'), {
         headers: { Authorization: 'Bearer operator-a-token' },
       });
       if (notifRes.ok) {
@@ -72,7 +73,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
       }
 
       // Fetch Phase 23 SLO & Operational Incidents Telemetry
-      const sloRes = await fetch('/api/v1/ops/slo', {
+      const sloRes = await fetch(getApiUrl('/api/v1/ops/slo'), {
         headers: { Authorization: 'Bearer operator-a-token' },
       });
       if (sloRes.ok) {
@@ -82,7 +83,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
         }
       }
 
-      const incRes = await fetch('/api/v1/ops/incidents', {
+      const incRes = await fetch(getApiUrl('/api/v1/ops/incidents'), {
         headers: { Authorization: 'Bearer operator-a-token' },
       });
       if (incRes.ok) {
@@ -101,7 +102,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
   const fetchRunDetail = async (id: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/ops/runs/${id}`);
+      const res = await fetch(getApiUrl(`/api/v1/ops/runs/${id}`));
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -707,7 +708,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ activeRunI
                     onClick={async () => {
                       if (!selectedRunDetail) return;
                       try {
-                        const res = await fetch(`/api/v1/ops/runs/${selectedRunDetail.id}/reconcile`, { method: 'POST' });
+                        const res = await fetch(getApiUrl(`/api/v1/ops/runs/${selectedRunDetail.id}/reconcile`), { method: 'POST' });
                         const data = await res.json();
                         alert(`Reconciliation Result:\nStatus: ${data.reconciliation?.status}\nMessage: ${data.reconciliation?.message}`);
                         fetchOperatorData();
