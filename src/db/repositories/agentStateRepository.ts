@@ -249,16 +249,21 @@ export class AgentStateRepository {
 
     const validAgentRunId = data.agentRunId && data.agentRunId !== 'standalone-execution' && data.agentRunId !== 'standalone-run' ? data.agentRunId : null;
 
-    return prisma.verificationResult.create({
-      data: {
-        actionId: data.actionId,
-        agentRunId: validAgentRunId,
-        status: data.status,
-        expectedState: data.expectedState,
-        actualState: data.actualState,
-        message: data.message,
-      },
-    });
+    try {
+      return await prisma.verificationResult.create({
+        data: {
+          actionId: data.actionId,
+          agentRunId: validAgentRunId,
+          status: data.status,
+          expectedState: data.expectedState,
+          actualState: data.actualState,
+          message: data.message,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2003' || err?.code === 'P2025') return null;
+      throw err;
+    }
   }
 
   /**

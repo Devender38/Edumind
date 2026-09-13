@@ -48,7 +48,8 @@ export class SSRFGuard {
       return { allowed: false, reason: `Disallowed protocol '${parsed.protocol}'. Only http: and https: are allowed`, url: rawUrl };
     }
 
-    const hostname = parsed.hostname.toLowerCase();
+    const rawHostname = parsed.hostname.toLowerCase();
+    const hostname = rawHostname.replace(/^\[|\]$/g, '');
 
     // Check explicit localhost override flag for local LLM sandbox development
     const isLocalhostRequest = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';

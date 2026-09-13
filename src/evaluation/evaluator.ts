@@ -46,6 +46,7 @@ export class EvaluationRunner {
     for (const testCase of dataset) {
       // 1. Database Isolation: Seed DB prior to every evaluation case
       await seedDatabase().catch(() => null);
+      await new Promise((r) => setTimeout(r, 10));
       FailureInjector.reset();
 
       // 2. Setup Failure Injection if configured for test case

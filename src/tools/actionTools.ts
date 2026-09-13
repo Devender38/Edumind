@@ -6,6 +6,18 @@ import { ToolResult } from '../types/index.js';
 import { FailureInjector } from '../utils/failureInjector.js';
 
 export class ActionTools {
+  private static async getValidAgentRunId(tx: any, agentRunId?: string): Promise<string | null> {
+    if (!agentRunId || agentRunId === 'standalone-run' || agentRunId === 'standalone-execution') {
+      return null;
+    }
+    try {
+      const run = await tx.agentRun.findUnique({ where: { id: agentRunId } });
+      return run ? agentRunId : null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * 9. issueRefund(orderId, amount, reason, idempotencyKey)
    */
@@ -101,7 +113,7 @@ export class ActionTools {
 
         // Find associated ticket if present
         const ticket = await tx.ticket.findFirst({ where: { orderId: order.id } });
-        const validAgentRunId = options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null;
+        const validAgentRunId = await ActionTools.getValidAgentRunId(tx, options?.agentRunId);
 
         const actionRecord = await tx.actionRecord.create({
           data: {
@@ -151,10 +163,11 @@ export class ActionTools {
 
           if (!actionRecord) {
             const ticket = await prisma.ticket.findFirst({ where: { orderId: order.id } });
+            const validAgentRunId = await ActionTools.getValidAgentRunId(prisma, options?.agentRunId);
             actionRecord = await prisma.actionRecord.create({
               data: {
                 ticketId: ticket?.id || null,
-                agentRunId: options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null,
+                agentRunId: validAgentRunId,
                 actionType: 'REFUND',
                 status: 'EXECUTED',
                 externalReference: existingTx.id,
@@ -246,7 +259,7 @@ export class ActionTools {
         });
 
         const ticket = await tx.ticket.findFirst({ where: { orderId: order.id } });
-        const validAgentRunId = options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null;
+        const validAgentRunId = await ActionTools.getValidAgentRunId(tx, options?.agentRunId);
 
         const actionRecord = await tx.actionRecord.create({
           data: {
@@ -330,7 +343,7 @@ export class ActionTools {
         });
 
         const ticket = await tx.ticket.findFirst({ where: { orderId: order.id } });
-        const validAgentRunId = options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null;
+        const validAgentRunId = await ActionTools.getValidAgentRunId(tx, options?.agentRunId);
 
         const actionRecord = await tx.actionRecord.create({
           data: {
@@ -390,7 +403,7 @@ export class ActionTools {
           },
         });
 
-        const validAgentRunId = options?.agentRunId && options.agentRunId !== 'standalone-run' ? options.agentRunId : null;
+        const validAgentRunId = await ActionTools.getValidAgentRunId(tx, options?.agentRunId);
 
         const actionRecord = await tx.actionRecord.create({
           data: {

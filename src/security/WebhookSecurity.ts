@@ -95,3 +95,24 @@ export class WebhookSecurity {
     return { valid: true, eventId, tenantId };
   }
 }
+
+export class WebhookValidator {
+  public static generateSignature(payload: string, secret: string): string {
+    return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  }
+
+  public static validateSignature(payload: string, signature: string, secret: string): boolean {
+    if (!signature || !secret) return false;
+    const cleanSig = signature.replace(/^sha256=/i, '').trim();
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const sigBuf = Buffer.from(cleanSig, 'hex');
+    const expBuf = Buffer.from(expected, 'hex');
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  }
+
+  public static isTimestampFresh(timestampMs: number, maxAgeSeconds: number = 300): boolean {
+    const ageSeconds = Math.abs(Date.now() - timestampMs) / 1000;
+    return ageSeconds <= maxAgeSeconds;
+  }
+}

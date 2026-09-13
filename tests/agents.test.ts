@@ -183,11 +183,13 @@ describe('ResolveX Phase 5 Intent & Investigation Agents Test Suite', () => {
   // 25. SIDE-EFFECT SAFETY TEST
   it('25. Side-Effect Safety Test: Intent & Investigation must NOT mutate business database state', async () => {
     // Record pre-investigation database metrics
+    await seedDatabase();
     const preOrder = await prisma.order.findUnique({ where: { id: 'ord-phone-24999' } });
     const preProduct = await prisma.product.findUnique({ where: { id: 'prod-phone-001' } });
     const preRefundsCount = await prisma.refundTransaction.count();
     const preCouponsCount = await prisma.coupon.count();
     const preActionsCount = await prisma.actionRecord.count();
+
 
     // Run Intent + Investigation
     const intent = await IntentAgent.analyze({

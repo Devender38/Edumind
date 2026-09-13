@@ -58,6 +58,8 @@ export type LogEventType =
   | 'AFTER_POLICY_ACTIVATION_FAILURE'
   | 'EXECUTION_DUPLICATE_CLAIM'
   | 'WORKER_STARTING'
+  | 'DURABLE_QUEUE_ENQUEUE'
+  | 'DURABLE_QUEUE_ACK'
   | 'WORKER_SHUTTING_DOWN'
   | 'WORKER_STOPPED'
   | 'NOTIFICATION_QUEUED'
@@ -111,7 +113,7 @@ export class Logger {
   /**
    * Sanitizes sensitive fields from metadata to enforce zero credential leakage in logs.
    */
-  private static sanitizeMetadata(obj: any): any {
+  public static sanitizeMetadata(obj: any): any {
     if (!obj || typeof obj !== 'object') return obj;
 
     if (Array.isArray(obj)) {
@@ -136,6 +138,10 @@ export class Logger {
       }
     }
     return sanitized;
+  }
+
+  public static redactSensitiveData(obj: any): any {
+    return this.sanitizeMetadata(obj);
   }
 
   private static log(level: LogLevel, payload: StructuredLogPayload): void {

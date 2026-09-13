@@ -22,7 +22,13 @@ import { PolicyConditionEvaluator } from '../policy/PolicyConditionEvaluator.js'
 import { caseRepository } from '../db/repositories/caseRepository.js';
 import { prisma } from '../db/client.js';
 import { loadConfig, getRuntimeMetadata } from '../config/index.js';
-import { metricsRegistry, sloEngine, incidentManager } from '../observability/index.js';
+import { metricsRegistry, sloEngine, incidentManager, PerformanceEngine, RecommendationEngine, ExperimentSafetyController } from '../observability/index.js';
+import { AIResourceGovernance } from '../ai/aiResourceGovernance.js';
+import { DurableWorkQueue } from '../execution/durableQueue.js';
+import { EnterpriseRBAC } from '../auth/enterpriseRbac.js';
+import { PersistentObservability } from '../observability/persistentObservability.js';
+import { FeatureFlagManager } from '../config/featureFlags.js';
+
 import { IntegrationRegistry } from '../integrations/registry/IntegrationRegistry.js';
 import { IntegrationMode } from '../integrations/core/IntegrationTypes.js';
 
@@ -39,10 +45,24 @@ export function getDrainingState(): boolean {
   return isDraining;
 }
 
+let isKillSwitchActiveState = false;
+export function setKillSwitchState(active: boolean) {
+  isKillSwitchActiveState = active;
+}
+export function isKillSwitchActive(): boolean {
+  return isKillSwitchActiveState;
+}
+
 import { RequestValidator } from '../security/RequestValidator.js';
 
-// Express Security Headers
-app.use((_req: Request, res: Response, next) => {
+// Express Security Headers & Tracing Middleware
+app.use((req: Request, res: Response, next) => {
+  let correlationId = (req.headers['x-correlation-id'] as string) || (req.headers['traceparent'] as string);
+  if (!correlationId || correlationId.includes('<') || correlationId.includes('>')) {
+    correlationId = `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  }
+  (req as any).correlationId = correlationId;
+  res.setHeader('X-Correlation-ID', correlationId);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -77,7 +97,7 @@ app.get('/api/v1/health/readiness', async (_req: Request, res: Response) => {
   const coordinator = ExecutionCoordinator.getInstance();
   const coordinatorReady = coordinator.isReady();
 
-  if (isDraining || !coordinatorReady) {
+  if (isDraining || isKillSwitchActiveState || !coordinatorReady) {
     return res.status(503).json({
       status: 'SHUTTING_DOWN',
       readiness: false,
@@ -729,7 +749,7 @@ app.post(['/api/v1/agents/run', '/api/v1/agents/runs'], authenticate, requireRol
 // ----------------------------------------------------
 
 // POST /api/v1/agents/runs/:id/approve & /api/v1/agents/runs/:id/approval
-app.post(['/api/v1/agents/runs/:id/approve', '/api/v1/agents/runs/:id/approval'], authenticate, requireRole(['APPROVER', 'ADMIN']), async (req: Request, res: Response) => {
+app.post(['/api/v1/agents/runs/:id/approve', '/api/v1/agents/runs/:id/approval'], authenticate, requireRole(['APPROVER', 'ADMIN', 'TENANT_ADMIN', 'SYSTEM_ADMIN']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const runId = req.params.id;
@@ -749,7 +769,7 @@ app.post(['/api/v1/agents/runs/:id/approve', '/api/v1/agents/runs/:id/approval']
     }
 
     // Tenant isolation check
-    if (run.tenantId !== principal.tenantId && principal.role !== 'ADMIN') {
+    if (run.tenantId !== principal.tenantId && !['ADMIN', 'SYSTEM_ADMIN'].includes(principal.role)) {
       SecurityLogger.logEvent('CROSS_TENANT_ACCESS_DENIED', {
         correlationId: req.correlationId,
         principalId: principal.id,
@@ -783,12 +803,13 @@ app.post(['/api/v1/agents/runs/:id/approve', '/api/v1/agents/runs/:id/approval']
 
     return res.json({ success: true, orchestrationResult });
   } catch (error: any) {
+    console.error("APPROVE_ROUTE_ERROR:", error);
     const status = error.message?.includes('AGENT_RUN_NOT_FOUND')
       ? 404
       : error.message?.includes('INVALID_STATE')
       ? 409
       : 500;
-    return res.status(status).json({ error: error.message });
+    return res.status(status).json({ error: error.message, stack: error.stack });
   }
 });
 
@@ -872,7 +893,7 @@ app.post('/api/v1/agents/runs/:id/consent', authenticate, requireRole(['CUSTOMER
 // ----------------------------------------------------
 
 // GET /api/v1/ops/runs
-app.get('/api/v1/ops/runs', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), requireTenantIsolation, async (req: Request, res: Response) => {
+app.get('/api/v1/ops/runs', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), requireTenantIsolation, async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const { status, currentStep, correlationId, ticketId, orderId, staleOnly, limit, offset } = req.query;
@@ -896,7 +917,7 @@ app.get('/api/v1/ops/runs', authenticate, requireRole(['OPERATOR', 'APPROVER', '
 });
 
 // GET /api/v1/ops/health/runs (MUST be placed before /:id to prevent route shadowing)
-app.get('/api/v1/ops/health/runs', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/health/runs', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const report = await AgentStateRepository.getHealthAndStaleRunsReport(
@@ -909,7 +930,7 @@ app.get('/api/v1/ops/health/runs', authenticate, requireRole(['OPERATOR', 'APPRO
 });
 
 // GET /api/v1/ops/execution/status
-app.get('/api/v1/ops/execution/status', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/execution/status', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const coordinator = ExecutionCoordinator.getInstance();
@@ -926,7 +947,7 @@ app.get('/api/v1/ops/execution/status', authenticate, requireRole(['OPERATOR', '
 });
 
 // GET /api/v1/ops/runs/:id
-app.get('/api/v1/ops/runs/:id', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/runs/:id', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const runId = req.params.id;
@@ -1091,7 +1112,7 @@ app.post('/api/v1/notifications/:id/read', authenticate, requireRole(['CUSTOMER'
 // ----------------------------------------------------
 
 // GET /api/v1/ops/notifications/metrics — Delivery metrics (must be before /:id)
-app.get('/api/v1/ops/notifications/metrics', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/notifications/metrics', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const tenantId = principal.role === 'ADMIN' ? undefined : principal.tenantId;
@@ -1103,7 +1124,7 @@ app.get('/api/v1/ops/notifications/metrics', authenticate, requireRole(['OPERATO
 });
 
 // GET /api/v1/ops/notifications — List tenant notifications (operator view)
-app.get('/api/v1/ops/notifications', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/notifications', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const { status, eventType, recipientType, limit, offset } = req.query;
@@ -1125,7 +1146,7 @@ app.get('/api/v1/ops/notifications', authenticate, requireRole(['OPERATOR', 'APP
 });
 
 // GET /api/v1/ops/notifications/:id — Single notification detail (operator view)
-app.get('/api/v1/ops/notifications/:id', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/notifications/:id', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const tenantId = principal.role === 'ADMIN' ? undefined : principal.tenantId;
@@ -1520,7 +1541,7 @@ app.get('/api/v1/metrics', authenticate, requireRole(['OPERATOR', 'ADMIN', 'SERV
 });
 
 // GET /api/v1/ops/slo — SLO status, error budgets & burn rates
-app.get('/api/v1/ops/slo', authenticate, requireRole(['OPERATOR', 'ADMIN', 'SERVICE']), async (_req: Request, res: Response) => {
+app.get('/api/v1/ops/slo', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'ADMIN', 'SERVICE']), async (_req: Request, res: Response) => {
   try {
     const slos = sloEngine.evaluateSLOs();
     return res.json({
@@ -1534,7 +1555,7 @@ app.get('/api/v1/ops/slo', authenticate, requireRole(['OPERATOR', 'ADMIN', 'SERV
 });
 
 // GET /api/v1/ops/incidents — List active/historical operational incidents
-app.get('/api/v1/ops/incidents', authenticate, requireRole(['OPERATOR', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/incidents', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const status = req.query.status as string | undefined;
@@ -1564,7 +1585,7 @@ app.get('/api/v1/ops/incidents', authenticate, requireRole(['OPERATOR', 'ADMIN',
 });
 
 // GET /api/v1/ops/incidents/:id — Fetch detailed incident record
-app.get('/api/v1/ops/incidents/:id', authenticate, requireRole(['OPERATOR', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/incidents/:id', authenticate, requireRole(['OPERATOR', 'READ_ONLY_OPERATOR', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const tenantId = (principal.role === 'ADMIN' || principal.role === 'SERVICE') ? undefined : principal.tenantId;
@@ -1699,7 +1720,111 @@ app.post('/api/v1/ops/incidents/:id/close', authenticate, requireRole(['ADMIN'])
   }
 });
 
+// ----------------------------------------------------
+// STEP 8 — ADVANCED PRODUCTION INTELLIGENCE & OPTIMIZATION CONTROL PLANE ENDPOINTS
+// ----------------------------------------------------
+
+// GET /api/v1/ops/optimization/performance — Performance engine metrics snapshot
+app.get('/api/v1/ops/optimization/performance', authenticate, requireRole(['READ_ONLY_OPERATOR', 'OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const windowMs = req.query.windowMs ? parseInt(req.query.windowMs as string, 10) : 3600000;
+  const snapshot = PerformanceEngine.getInstance().getSnapshot(windowMs);
+  return res.json({ success: true, performance: snapshot });
+});
+
+// GET /api/v1/ops/optimization/ai-budget — AI token and budget governance stats
+app.get('/api/v1/ops/optimization/ai-budget', authenticate, requireRole(['READ_ONLY_OPERATOR', 'OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const tenantId = req.query.tenantId as string || (principal.role === 'ADMIN' ? 'tenant-alpha' : principal.tenantId);
+  const status = AIResourceGovernance.getInstance().getBudgetStatus(tenantId);
+  return res.json({ success: true, aiBudget: status });
+});
+
+// GET /api/v1/ops/optimization/recommendations — List optimization recommendations
+app.get('/api/v1/ops/optimization/recommendations', authenticate, requireRole(['READ_ONLY_OPERATOR', 'OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const status = req.query.status as string;
+  const recs = RecommendationEngine.getInstance().getRecommendations(status ? { status } : undefined);
+  return res.json({ success: true, recommendations: recs });
+});
+
+// POST /api/v1/ops/optimization/recommendations/:id/approve — Approve recommendation (Requires OPERATOR or ADMIN)
+app.post('/api/v1/ops/optimization/recommendations/:id/approve', authenticate, requireRole(['OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const rec = RecommendationEngine.getInstance().approveRecommendation(req.params.id, principal.id);
+  if (!rec) return res.status(404).json({ success: false, error: 'Recommendation not found or invalid state' });
+  return res.json({ success: true, recommendation: rec });
+});
+
+// POST /api/v1/ops/optimization/recommendations/:id/apply — Apply approved recommendation (Requires OPERATOR or ADMIN)
+app.post('/api/v1/ops/optimization/recommendations/:id/apply', authenticate, requireRole(['OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const rec = RecommendationEngine.getInstance().applyRecommendation(req.params.id, principal.id);
+  if (!rec) return res.status(404).json({ success: false, error: 'Recommendation not found or not in APPROVED state' });
+  return res.json({ success: true, recommendation: rec });
+});
+
+// POST /api/v1/ops/optimization/experiments/rollout — Configure experiment canary percentage (Requires OPERATOR or ADMIN)
+app.post('/api/v1/ops/optimization/experiments/rollout', authenticate, requireRole(['OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const { flagKey, percentage, enabled, tenantIds } = req.body || {};
+  if (!flagKey || percentage === undefined) return res.status(400).json({ success: false, error: 'Missing flagKey or percentage' });
+  const flag = ExperimentSafetyController.getInstance().setRollout(flagKey, percentage, enabled, tenantIds);
+  return res.json({ success: true, experiment: flag });
+});
+
+// POST /api/v1/ops/optimization/experiments/:flagKey/rollback — Trigger emergency experiment rollback (Requires OPERATOR or ADMIN)
+app.post('/api/v1/ops/optimization/experiments/:flagKey/rollback', authenticate, requireRole(['OPERATOR', 'ADMIN']), (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const { reason } = req.body || {};
+  const flag = ExperimentSafetyController.getInstance().rollback(req.params.flagKey, principal.id, reason || 'Operator triggered emergency rollback');
+  if (!flag) return res.status(404).json({ success: false, error: 'Flag not found' });
+  return res.json({ success: true, experiment: flag });
+});
+
+// ----------------------------------------------------
+// STEP 9 — ENTERPRISE CONTROL PLANE REST ENDPOINTS
+// ----------------------------------------------------
+
+// GET /api/v1/enterprise/tenant/quotas — Inspect tenant resource quotas & usage
+app.get('/api/v1/enterprise/tenant/quotas', authenticate, (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const tenantId = (req.query.tenantId as string) || principal.tenantId || 'tenant-a';
+  const aiGov = AIResourceGovernance.getInstance();
+  const budget = aiGov.checkBudget(tenantId);
+  return res.json({ success: true, tenantId, quota: budget });
+});
+
+// GET /api/v1/enterprise/queue/depth — Durable queue depth & dead-letter stats
+app.get('/api/v1/enterprise/queue/depth', authenticate, async (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const tenantId = (req.query.tenantId as string) || principal.tenantId || 'tenant-a';
+  const queue = DurableWorkQueue.getInstance();
+  const depth = await queue.getDepth(tenantId);
+  return res.json({ success: true, tenantId, depth });
+});
+
+// GET /api/v1/enterprise/rbac/audit — Enterprise RBAC compliance audit log
+app.get('/api/v1/enterprise/rbac/audit', authenticate, requireRole(['ADMIN', 'AUDITOR', 'OPERATOR']), (req: Request, res: Response) => {
+  const principal = req.principal!;
+  const rbac = EnterpriseRBAC.getInstance();
+  const trail = rbac.getAuditTrail(principal.role === 'ADMIN' ? undefined : principal.tenantId);
+  return res.json({ success: true, count: trail.length, auditTrail: trail });
+});
+
+// GET /api/v1/enterprise/metrics/prometheus — Prometheus format telemetry exporter
+app.get('/api/v1/enterprise/metrics/prometheus', (_req: Request, res: Response) => {
+  const obs = PersistentObservability.getInstance();
+  const output = obs.exportPrometheusFormat();
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+  return res.send(output);
+});
+
+// GET /api/v1/enterprise/flags — List enterprise feature flag rollouts
+app.get('/api/v1/enterprise/flags', authenticate, (_req: Request, res: Response) => {
+  const flags = FeatureFlagManager.getInstance().getAllFlags();
+  return res.json({ success: true, count: flags.length, flags });
+});
+
 // Catch-All 404 JSON Handler (must be before global error handler)
+
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
     success: false,

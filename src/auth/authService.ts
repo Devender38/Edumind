@@ -60,13 +60,37 @@ export class AuthService {
   /**
    * Generates a signed Bearer Token for a principal with mandatory iat and exp timestamps
    */
-  public static generateToken(principal: Principal, ttlMs: number = 24 * 60 * 60 * 1000): string {
+  public static generateToken(principal: Principal, ttlMs: number | string = 24 * 60 * 60 * 1000): string {
     const now = Date.now();
+    let ttl = 24 * 60 * 60 * 1000;
+    if (typeof ttlMs === 'number') {
+      ttl = ttlMs;
+    } else if (typeof ttlMs === 'string') {
+      if (ttlMs.endsWith('s')) {
+        ttl = parseInt(ttlMs.slice(0, -1), 10) * 1000;
+      } else if (ttlMs.endsWith('m')) {
+        ttl = parseInt(ttlMs.slice(0, -1), 10) * 60 * 1000;
+      } else if (ttlMs.endsWith('h')) {
+        ttl = parseInt(ttlMs.slice(0, -1), 10) * 3600 * 1000;
+      } else {
+        ttl = parseInt(ttlMs, 10);
+      }
+    }
+
+    const cleanPrincipal = {
+      id: principal.id,
+      type: principal.type || 'USER',
+      role: principal.role,
+      tenantId: principal.tenantId,
+      customerId: principal.customerId,
+      scopes: principal.scopes,
+    };
+
     const payload = JSON.stringify({
-      ...principal,
+      ...cleanPrincipal,
       iat: now,
       nbf: now,
-      exp: now + ttlMs,
+      exp: now + ttl,
       alg: 'HS256'
     });
     const base64Payload = Buffer.from(payload).toString('base64url');
@@ -81,14 +105,19 @@ export class AuthService {
    * Verifies and resolves an incoming token or preset key into a validated Principal.
    * Enforces algorithm confusion protection, expiration checks, and timing-safe signature comparison.
    */
-  public static verifyToken(token: string): Principal | null {
+  public static verifyToken(token: string): (Principal & { valid: boolean; principal: Principal }) | null {
     if (!token || typeof token !== 'string') return null;
 
     const trimmed = token.replace(/^Bearer\s+/i, '').trim();
 
     // 1. Check preset deterministic test tokens
     if (this.PRESET_TOKENS[trimmed]) {
-      return { ...this.PRESET_TOKENS[trimmed] };
+      const p = this.PRESET_TOKENS[trimmed];
+      return {
+        ...p,
+        valid: true,
+        principal: p,
+      };
     }
 
     // 2. Reject algorithm confusion attempts (e.g. `none` algorithm or unsigned tokens)
@@ -141,13 +170,19 @@ export class AuthService {
         return null; // Token not active yet
       }
 
-      return {
+      const principalObj: Principal = {
         id: decoded.id,
         type: decoded.type || 'USER',
         role: decoded.role as PrincipalRole,
         tenantId: decoded.tenantId,
         customerId: decoded.customerId,
         scopes: decoded.scopes || [],
+      };
+
+      return {
+        ...principalObj,
+        valid: true,
+        principal: principalObj,
       };
     } catch {
       return null; // Malformed JSON payload

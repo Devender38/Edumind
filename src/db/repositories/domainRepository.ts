@@ -15,16 +15,33 @@ export class DomainRepository {
 
   // Order Queries
   static async getOrderById(id: string, tenantId?: string) {
-    return prisma.order.findFirst({
-      where: tenantId ? { id, tenantId } : { id },
-      include: {
-        customer: true,
-        items: {
-          include: { product: true },
+    try {
+      return await prisma.order.findFirst({
+        where: tenantId ? { id, tenantId } : { id },
+        include: {
+          customer: true,
+          items: {
+            include: { product: true },
+          },
+          refunds: true,
         },
-        refunds: true,
-      },
-    });
+      });
+    } catch (err: any) {
+      if (err.message?.includes('Inconsistent query result')) {
+        await new Promise((r) => setTimeout(r, 20));
+        return await prisma.order.findFirst({
+          where: tenantId ? { id, tenantId } : { id },
+          include: {
+            customer: true,
+            items: {
+              include: { product: true },
+            },
+            refunds: true,
+          },
+        });
+      }
+      throw err;
+    }
   }
 
   // Product Inventory Check

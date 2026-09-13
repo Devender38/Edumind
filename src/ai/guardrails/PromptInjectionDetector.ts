@@ -24,6 +24,7 @@ export class PromptInjectionDetector {
     /cancel_order\s*\(/i,
     /cancelOrder\s*\(/i,
     /bypass\s+(approval|consent|policy|auth)/i,
+    /disable\s+(circuit\s+breaker|rate\s+limit|rate_limit|safety|security|controls)/i,
     /reveal\s+(system\s+prompt|secret|api\s+key|credentials|password)/i,
     /show\s+me\s+your\s+(instructions|prompt|secret)/i,
     /print\s+(system\s+prompt|chain\s+of\s+thought)/i,
@@ -33,7 +34,10 @@ export class PromptInjectionDetector {
     /approvalToken\s*=\s*['"]?[a-z0-9_-]+/i,
     /fake_approval_token/i,
     /\[SYSTEM_NOTE\]/i,
-    /<SYSTEM_INSTRUCTION>/i
+    /<SYSTEM_INSTRUCTION>/i,
+    /skip\s+(causal\s+)?(verification|check)/i,
+    /(DROP|DELETE|UPDATE|INSERT|ALTER|TRUNCATE)\s+(TABLE|FROM|INTO)/i,
+    /access\s+tenant-[a-z0-9_-]+\s+(cache|data|key)/i
   ];
 
   public static detect(input: string): InjectionCheckResult {

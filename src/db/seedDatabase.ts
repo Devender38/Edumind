@@ -325,6 +325,19 @@ export async function seedDatabase() {
 
   await prisma.agentRun.create({
     data: {
+      id: 'run-primary-001',
+      tenantId: 'tenant-a',
+      ticketId: 'tkt-damaged-phone-001',
+      goal: 'Primary tenant-a run goal',
+      status: 'INVESTIGATING',
+      currentStep: 'INVESTIGATION',
+      correlationId: 'corr-primary-001',
+      replanCount: 0,
+    },
+  });
+
+  await prisma.agentRun.create({
+    data: {
       id: 'run-tenant-b-001',
       tenantId: 'tenant-b',
       ticketId: ticketB.id,
