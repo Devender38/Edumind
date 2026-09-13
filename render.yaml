@@ -1,0 +1,80 @@
+# ====================================================
+# ResolveX Autonomous Agent — Production Render Blueprint Specification
+# ====================================================
+# Reference: https://render.com/docs/blueprint-spec
+# Application Version: 1.0.0 (Certified Baseline)
+# ====================================================
+
+version: "1"
+
+# ----------------------------------------------------
+# 1. Managed PostgreSQL Database Instance
+# ----------------------------------------------------
+databases:
+  - name: resolvex-db
+    databaseName: resolvex_prod
+    user: resolvex_user
+    plan: starter
+    ipAllowList: [] # Private network only — not publicly exposed
+
+services:
+  # ----------------------------------------------------
+  # 2. Backend Node.js Web Service (API Engine)
+  # ----------------------------------------------------
+  - type: web
+    name: resolvex-backend
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run db:generate:pg && npm run db:migrate:prod && npm run build:backend
+    startCommand: npm run start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resolvex-db
+          property: connectionString
+      - key: RESOLVEX_AUTH_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        fromService:
+          type: static_site
+          name: resolvex-frontend
+          property: url
+      - key: RESOLVEX_WORKER_CONCURRENCY
+        value: "5"
+      - key: SHUTDOWN_GRACE_MS
+        value: "30000"
+      - key: AUTO_REFUND_LIMIT_INR
+        value: "10000"
+      - key: MAX_REPLAN_ATTEMPTS
+        value: "3"
+      - key: ENABLE_VERIFICATION_CHECK
+        value: "true"
+      - key: AI_PROVIDER_MODE
+        value: "mock"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # ----------------------------------------------------
+  # 3. Frontend Single Page Application Static Site
+  # ----------------------------------------------------
+  - type: static_site
+    name: resolvex-frontend
+    buildCommand: npm run build:frontend
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: resolvex-backend
+          property: url
