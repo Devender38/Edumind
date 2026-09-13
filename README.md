@@ -5,7 +5,18 @@
 [![Certification Status](https://img.shields.io/badge/Certification-100%25%20Certified-brightgreen.svg)](#certification--verification-status)
 [![Workspace Tests](https://img.shields.io/badge/Workspace%20Tests-1611%2F1611%20Passed-success.svg)](#certification--verification-status)
 [![Golden Evaluation](https://img.shields.io/badge/Golden%20Eval-50%2F50%20(100%25)-blue.svg)](#certification--verification-status)
+[![Deployment Status](https://img.shields.io/badge/Render%20Deployment-Live-brightgreen.svg)](#-live-deployment-links)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+
+---
+
+## 🌐 Live Deployment Links
+
+Users and evaluators can access the live production deployment hosted on Render:
+
+- 💻 **Live Frontend Application**: [https://resolvex-frontend.onrender.com](https://resolvex-frontend.onrender.com)
+- ⚙️ **Live Backend API Engine**: [https://resolvex-backend-78ys.onrender.com](https://resolvex-backend-78ys.onrender.com)
+- 🏥 **Backend Health Check**: [https://resolvex-backend-78ys.onrender.com/api/v1/health](https://resolvex-backend-78ys.onrender.com/api/v1/health)
 
 ---
 
