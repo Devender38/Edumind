@@ -42,4 +42,8 @@ export class RateLimiter {
   public static resetStore(): void {
     this.store.clear();
   }
+
+  public static clearAll(): void {
+    this.resetStore();
+  }
 }

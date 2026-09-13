@@ -15,10 +15,12 @@ export class LocalLLMProvider implements AIProvider {
     this.modelName = options?.modelName || process.env.LOCAL_LLM_MODEL || process.env.OLLAMA_MODEL || 'llama3.2:latest';
     
     // Hardened client with 30s timeout and single retry for local inferencing
+    // Local LLM is always on localhost/loopback — allowLocalhost must be true
     this.client = new HardenedHttpClient({
       baseURL: this.baseURL,
       timeoutMs: Number(process.env.LOCAL_LLM_TIMEOUT_MS) || 30000,
       maxRetries: 1,
+      allowLocalhost: true,
       customFetch: options?.customFetch
     });
   }
@@ -114,6 +116,14 @@ export class LocalLLMProvider implements AIProvider {
       };
 
     } catch (err: any) {
+      // Normalize all network-layer failures to LOCAL_LLM_UNAVAILABLE:
+      // - NETWORK_ERROR: actual connection failure
+      // - SSRF_BLOCKED: URL is malformed/invalid (e.g., port 99999) or localhost guard triggered
+      // - Any unclassified error
+      const isLocalUnavailableCode = !err.code 
+        || typeof err.code !== 'string' 
+        || err.code === 'NETWORK_ERROR' 
+        || err.code === 'SSRF_BLOCKED';
       return {
         success: false,
         provider: this.providerName,
@@ -122,7 +132,7 @@ export class LocalLLMProvider implements AIProvider {
         confidence: 0,
         latencyMs: Date.now() - startTime,
         error: {
-          code: (err.code === 'NETWORK_ERROR' || !err.code || typeof err.code !== 'string') ? 'LOCAL_LLM_UNAVAILABLE' : err.code,
+          code: isLocalUnavailableCode ? 'LOCAL_LLM_UNAVAILABLE' : err.code,
           message: `Local LLM Endpoint unreachable at ${this.baseURL}: ${err.message || String(err)}`,
           retryable: true
         },

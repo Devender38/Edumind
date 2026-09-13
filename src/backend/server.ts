@@ -9,7 +9,7 @@ import { AgentStateRepository } from '../db/repositories/agentStateRepository.js
 import { LookupTools, PolicyTools, ActionTools, VerificationTools, ToolRegistry } from '../tools/index.js';
 import { IntentAgent, InvestigationAgent, PolicyEngine, DecisionEngine, ActionExecutor, FailureRecoveryAgent, AgentOrchestrator } from '../agents/index.js';
 import { EvaluationRunner } from '../evaluation/evaluator.js';
-import { authenticate, requireRole } from '../auth/authMiddleware.js';
+import { authenticate, requireRole, requireTenantIsolation } from '../auth/authMiddleware.js';
 import { AuthService } from '../auth/authService.js';
 import { validateSecurityInputs } from '../utils/securityValidation.js';
 import { SecurityLogger } from '../utils/securityLogger.js';
@@ -39,17 +39,23 @@ export function getDrainingState(): boolean {
   return isDraining;
 }
 
+import { RequestValidator } from '../security/RequestValidator.js';
+
 // Express Security Headers
 app.use((_req: Request, res: Response, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy', "default-src 'self'");
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   next();
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(RequestValidator.validatePayload());
 app.use(validateSecurityInputs);
 
 // ----------------------------------------------------
@@ -624,8 +630,8 @@ app.post('/api/v1/agents/recovery/replan', authenticate, requireRole(['SERVICE',
 // PROTECTED ORCHESTRATION ENDPOINT
 // ----------------------------------------------------
 
-// POST /api/v1/agents/run
-app.post('/api/v1/agents/run', authenticate, requireRole(['CUSTOMER', 'OPERATOR', 'SERVICE', 'ADMIN']), async (req: Request, res: Response) => {
+// POST /api/v1/agents/run  &  POST /api/v1/agents/runs (alias)
+app.post(['/api/v1/agents/run', '/api/v1/agents/runs'], authenticate, requireRole(['CUSTOMER', 'OPERATOR', 'SERVICE', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const {
@@ -866,7 +872,7 @@ app.post('/api/v1/agents/runs/:id/consent', authenticate, requireRole(['CUSTOMER
 // ----------------------------------------------------
 
 // GET /api/v1/ops/runs
-app.get('/api/v1/ops/runs', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), async (req: Request, res: Response) => {
+app.get('/api/v1/ops/runs', authenticate, requireRole(['OPERATOR', 'APPROVER', 'ADMIN', 'SERVICE']), requireTenantIsolation, async (req: Request, res: Response) => {
   try {
     const principal = req.principal!;
     const { status, currentStep, correlationId, ticketId, orderId, staleOnly, limit, offset } = req.query;
@@ -1693,9 +1699,34 @@ app.post('/api/v1/ops/incidents/:id/close', authenticate, requireRole(['ADMIN'])
   }
 });
 
-const coordinator = ExecutionCoordinator.getInstance();
-coordinator.start();
+// Catch-All 404 JSON Handler (must be before global error handler)
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'Not Found: The requested endpoint does not exist.',
+  });
+});
 
+// Global Error Handler Middleware — Sanitizes Stack Traces & Internal Error Leakage
+app.use((err: any, req: Request, res: Response, _next: any) => {
+  const correlationId = (req as any).correlationId || 'N/A';
+  SecurityLogger.logEvent('UNHANDLED_ERROR', {
+    correlationId,
+    errorName: err?.name,
+    message: err?.message,
+    route: req.path,
+    method: req.method
+  });
+
+  const statusCode = err?.status || err?.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Internal Server Error: An unexpected error occurred.' 
+      : (err?.message || 'Internal Server Error'),
+    correlationId
+  });
+});
 
 let serverInstance: any = null;
 

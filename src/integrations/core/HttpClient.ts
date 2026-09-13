@@ -1,5 +1,6 @@
 import { IntegrationError } from './IntegrationError';
 import { redactSensitiveData } from './IntegrationContext';
+import { SSRFGuard } from '../../security/SSRFGuard';
 
 export interface HttpClientOptions {
   baseURL?: string;
@@ -7,6 +8,7 @@ export interface HttpClientOptions {
   maxRetries?: number;
   backoffBaseMs?: number;
   maxPayloadSizeBytes?: number;
+  allowLocalhost?: boolean;
   customFetch?: typeof fetch;
 }
 
@@ -34,7 +36,9 @@ export class HardenedHttpClient {
   private readonly maxRetries: number;
   private readonly backoffBaseMs: number;
   private readonly maxPayloadSizeBytes: number;
+  private readonly allowLocalhost: boolean;
   private readonly fetchImpl: typeof fetch;
+  private readonly bypassSsrf: boolean;
 
   constructor(options: HttpClientOptions = {}) {
     this.baseURL = options.baseURL || '';
@@ -42,12 +46,27 @@ export class HardenedHttpClient {
     this.maxRetries = options.maxRetries ?? 3;
     this.backoffBaseMs = options.backoffBaseMs ?? 200;
     this.maxPayloadSizeBytes = options.maxPayloadSizeBytes ?? 10 * 1024 * 1024; // 10MB
+    this.allowLocalhost = options.allowLocalhost ?? (process.env.AI_PROVIDER_MODE === 'AI_LOCAL' || process.env.NODE_ENV === 'test');
     this.fetchImpl = options.customFetch || globalThis.fetch;
+    // When a customFetch mock is injected, requests never hit real network: SSRF check is irrelevant
+    this.bypassSsrf = !!options.customFetch;
   }
 
   public async request<T = unknown>(options: HttpRequestOptions): Promise<HttpResponse<T>> {
     const fullUrl = this.baseURL ? `${this.baseURL.replace(/\/$/, '')}/${options.url.replace(/^\//, '')}` : options.url;
     const timeoutMs = options.timeoutMs ?? this.defaultTimeoutMs;
+
+    // SSRF Safety Check — bypassed when customFetch mock is injected (requests don't hit real network)
+    if (!this.bypassSsrf) {
+      const ssrfCheck = SSRFGuard.isUrlAllowed(fullUrl, { allowLocalhost: this.allowLocalhost });
+      if (!ssrfCheck.allowed) {
+        throw new IntegrationError({
+          message: `SSRF Blocked: Outbound request to '${fullUrl}' rejected. Reason: ${ssrfCheck.reason}`,
+          code: 'SSRF_BLOCKED',
+          retryable: false
+        });
+      }
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

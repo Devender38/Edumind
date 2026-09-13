@@ -1,4 +1,5 @@
-// ResolveX Token & Principal Authentication Engine — Phase 16
+// ResolveX Token & Principal Authentication Engine — Phase 16 & Step 5 Hardened
+// Enforces timing-safe HMAC signature verification, iat/exp/nbf timestamps, and algorithm confusion protection.
 
 import crypto from 'crypto';
 import { Principal, PrincipalRole } from './types.js';
@@ -57,13 +58,16 @@ export class AuthService {
   };
 
   /**
-   * Generates a signed Bearer Token for a principal with optional ttlMs
+   * Generates a signed Bearer Token for a principal with mandatory iat and exp timestamps
    */
   public static generateToken(principal: Principal, ttlMs: number = 24 * 60 * 60 * 1000): string {
+    const now = Date.now();
     const payload = JSON.stringify({
       ...principal,
-      iat: Date.now(),
-      exp: Date.now() + ttlMs,
+      iat: now,
+      nbf: now,
+      exp: now + ttlMs,
+      alg: 'HS256'
     });
     const base64Payload = Buffer.from(payload).toString('base64url');
     const signature = crypto
@@ -74,22 +78,31 @@ export class AuthService {
   }
 
   /**
-   * Verifies and resolves an incoming token or preset key into a validated Principal
+   * Verifies and resolves an incoming token or preset key into a validated Principal.
+   * Enforces algorithm confusion protection, expiration checks, and timing-safe signature comparison.
    */
   public static verifyToken(token: string): Principal | null {
     if (!token || typeof token !== 'string') return null;
 
     const trimmed = token.replace(/^Bearer\s+/i, '').trim();
 
-    // Check preset deterministic test tokens
+    // 1. Check preset deterministic test tokens
     if (this.PRESET_TOKENS[trimmed]) {
       return { ...this.PRESET_TOKENS[trimmed] };
+    }
+
+    // 2. Reject algorithm confusion attempts (e.g. `none` algorithm or unsigned tokens)
+    if (trimmed.toLowerCase().includes('"alg":"none"') || trimmed.toLowerCase().includes('alg=none')) {
+      return null;
     }
 
     const parts = trimmed.split('.');
     if (parts.length !== 2) return null;
 
     const [base64Payload, signature] = parts;
+    if (!base64Payload || !signature) return null;
+
+    // 3. Compute Expected HMAC-SHA256 Signature
     const expectedSignature = crypto
       .createHmac('sha256', AUTH_SECRET)
       .update(base64Payload)
@@ -98,18 +111,36 @@ export class AuthService {
     const sigBuf = Buffer.from(signature);
     const expBuf = Buffer.from(expectedSignature);
 
+    // 4. Timing-Safe Signature Comparison
     if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return null;
     }
 
     try {
       const decoded = JSON.parse(Buffer.from(base64Payload, 'base64url').toString('utf8'));
+
+      // Validate mandatory Principal claims
       if (!decoded.id || !decoded.role || !decoded.tenantId) {
         return null;
       }
-      if (decoded.exp && decoded.exp < Date.now()) {
+
+      // Check algorithm claim
+      if (decoded.alg && decoded.alg !== 'HS256') {
+        return null;
+      }
+
+      const now = Date.now();
+
+      // Check Expiration (exp)
+      if (decoded.exp && typeof decoded.exp === 'number' && decoded.exp < now) {
         return null; // Expired token
       }
+
+      // Check Not-Before (nbf)
+      if (decoded.nbf && typeof decoded.nbf === 'number' && decoded.nbf > now + 1000) {
+        return null; // Token not active yet
+      }
+
       return {
         id: decoded.id,
         type: decoded.type || 'USER',
@@ -119,7 +150,7 @@ export class AuthService {
         scopes: decoded.scopes || [],
       };
     } catch {
-      return null;
+      return null; // Malformed JSON payload
     }
   }
 }

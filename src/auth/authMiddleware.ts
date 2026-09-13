@@ -1,4 +1,4 @@
-// ResolveX Express Security, RBAC & Tenant Isolation Middleware — Phase 16
+// ResolveX Express Security, RBAC & Zero-Trust Tenant Isolation Middleware — Step 5 Hardened
 
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './authService.js';
@@ -117,6 +117,94 @@ export function requireRole(allowedRoles: PrincipalRole[]) {
         correlationId,
       });
       return;
+    }
+
+    next();
+  };
+}
+
+/**
+ * Zero-Trust Tenant Isolation Middleware — Rejects request body/query/header tenant overrides
+ */
+export function requireTenantIsolation(req: Request, res: Response, next: NextFunction): void {
+  const correlationId = req.correlationId || 'N/A';
+  const principal = req.principal;
+
+  if (!principal) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Authentication required.',
+      correlationId,
+    });
+    return;
+  }
+
+  // Check requested tenantId in body, query, or path parameters against authenticated identity
+  const requestedTenant = req.body?.tenantId || req.query?.tenantId || req.params?.tenantId || req.headers['x-tenant-id'];
+
+  if (requestedTenant && requestedTenant !== principal.tenantId) {
+    SecurityLogger.logEvent('TENANT_VIOLATION', {
+      correlationId,
+      principalId: principal.id,
+      principalTenant: principal.tenantId,
+      requestedTenant: String(requestedTenant),
+      route: req.path,
+      method: req.method,
+      reason: 'Cross-tenant access attempt detected and blocked',
+    });
+    res.status(403).json({
+      success: false,
+      error: `Forbidden: Cross-tenant access denied. Principal tenant '${principal.tenantId}' cannot access requested tenant '${requestedTenant}'.`,
+      correlationId,
+    });
+    return;
+  }
+
+  // Strictly enforce principal tenantId on request body/query
+  if (req.body && typeof req.body === 'object') {
+    req.body.tenantId = principal.tenantId;
+  }
+
+  next();
+}
+
+/**
+ * Customer Self-Or-Admin Authorization Guard — Prevents Customer A from reading/writing Customer B resources
+ */
+export function requireSelfOrAdmin(customerIdParam: string = 'customerId') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const correlationId = req.correlationId || 'N/A';
+    const principal = req.principal;
+
+    if (!principal) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: Authentication required.',
+        correlationId,
+      });
+      return;
+    }
+
+    const targetCustomerId = req.params[customerIdParam] || req.body?.customerId || req.query?.customerId;
+
+    if (principal.role === 'CUSTOMER') {
+      if (targetCustomerId && principal.customerId !== targetCustomerId) {
+        SecurityLogger.logEvent('IDOR_DENIED', {
+          correlationId,
+          principalId: principal.id,
+          principalCustomerId: principal.customerId,
+          targetCustomerId: String(targetCustomerId),
+          route: req.path,
+          method: req.method,
+          reason: 'Customer attempted IDOR access to another customer resource',
+        });
+        res.status(403).json({
+          success: false,
+          error: 'Forbidden: IDOR protection prevented access to another customer resource.',
+          correlationId,
+        });
+        return;
+      }
     }
 
     next();
