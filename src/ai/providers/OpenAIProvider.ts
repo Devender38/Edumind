@@ -11,7 +11,7 @@ export class OpenAIProvider implements AIProvider {
   private readonly client: HardenedHttpClient;
 
   constructor(options?: { apiKey?: string; modelName?: string; baseURL?: string; customFetch?: typeof fetch }) {
-    this.apiKey = options?.apiKey || process.env.AI_API_KEY || process.env.OPENAI_API_KEY || '';
+    this.apiKey = options?.apiKey !== undefined ? options.apiKey : (process.env.AI_API_KEY || process.env.OPENAI_API_KEY || '');
     this.modelName = options?.modelName || process.env.AI_MODEL || process.env.OPENAI_MODEL_NAME || 'gpt-4o-mini';
     this.client = new HardenedHttpClient({
       baseURL: options?.baseURL || process.env.AI_BASE_URL || 'https://api.openai.com/v1',
