@@ -43,7 +43,7 @@ services:
         fromService:
           type: web
           name: resolvex-frontend
-          property: url
+          envVarKey: RENDER_EXTERNAL_URL
       - key: RESOLVEX_WORKER_CONCURRENCY
         value: "5"
       - key: SHUTDOWN_GRACE_MS
@@ -78,4 +78,4 @@ services:
         fromService:
           type: web
           name: resolvex-backend
-          property: url
+          envVarKey: RENDER_EXTERNAL_URL
