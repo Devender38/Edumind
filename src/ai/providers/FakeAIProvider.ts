@@ -12,6 +12,26 @@ export class FakeAIProvider implements AIProvider {
   public simulateLowConfidence: boolean = false;
   public customIntentResponse?: IntentLLMOutput;
 
+  public setSimulateTimeout(val: boolean): void {
+    this.simulateTimeout = val;
+  }
+
+  public setSimulateFailure(val: boolean): void {
+    this.simulateFailure = val;
+  }
+
+  public setSimulateInvalidJson(val: boolean): void {
+    this.simulateInvalidJson = val;
+  }
+
+  public setSimulateLowConfidence(val: boolean): void {
+    this.simulateLowConfidence = val;
+  }
+
+  public setCustomIntentResponse(res?: IntentLLMOutput): void {
+    this.customIntentResponse = res;
+  }
+
   public reset(): void {
     this.simulateTimeout = false;
     this.simulateFailure = false;

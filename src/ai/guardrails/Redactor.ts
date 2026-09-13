@@ -18,7 +18,9 @@ export class Redactor {
     'postgres',
     'connectionstring',
     'chainofthought',
-    'chain_of_thought'
+    'chain_of_thought',
+    'hmac',
+    'dbpassword'
   ];
 
   /**
@@ -50,7 +52,7 @@ export class Redactor {
   }
 
   /**
-   * Redacts sensitive string patterns like API keys or JWT tokens embedded in prose.
+   * Redacts sensitive string patterns like API keys, credit cards, SSNs, or passwords embedded in prose.
    */
   public static redactString(text: string): string {
     if (!text || typeof text !== 'string') return text;
@@ -63,8 +65,18 @@ export class Redactor {
     // Redact postgresql connection URLs
     result = result.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, 'postgresql://[REDACTED_DB_URL]');
 
+    // Redact credit card numbers (e.g. 4111-2222-3333-4444)
+    result = result.replace(/\b(?:\d[ -]*?){13,16}\b/g, '[REDACTED_CREDIT_CARD]');
+
+    // Redact SSNs (e.g. 999-00-1111)
+    result = result.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]');
+
+    // Redact passwords in prose like "password is secretpass123" or "password: mypass"
+    result = result.replace(/(password\s*(?:is|:|=)?\s*)([^\s,."']+)/gi, '$1[REDACTED]');
+
     // Redact API key strings
     result = result.replace(/(?:api[_-]?key|secret|token)\s*=\s*['"]?[a-zA-Z0-9_-]{8,}['"]?/gi, 'apiKey=[REDACTED]');
+    result = result.replace(/\bsk-(?:proj-)?[a-zA-Z0-9_-]{10,}\b/g, '[REDACTED_API_KEY]');
 
     return result;
   }
