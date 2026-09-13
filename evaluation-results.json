@@ -1,6 +1,6 @@
 {
-  "evaluationId": "eval-1789302132740",
-  "timestamp": "2026-09-13T12:22:29.612Z",
+  "evaluationId": "eval-1789305641641",
+  "timestamp": "2026-09-13T13:20:58.084Z",
   "datasetVersion": "15.0.0-golden",
   "summary": {
     "totalCases": 50,
@@ -38,21 +38,21 @@
     "violations": []
   },
   "performance": {
-    "totalDurationMs": 14673,
-    "averageCaseDurationMs": 293,
-    "p95CaseDurationMs": 170,
+    "totalDurationMs": 15091,
+    "averageCaseDurationMs": 302,
+    "p95CaseDurationMs": 280,
     "slowestCases": [
       {
+        "caseId": "CASE-038",
+        "durationMs": 484
+      },
+      {
         "caseId": "CASE-012",
-        "durationMs": 370
+        "durationMs": 386
       },
       {
         "caseId": "CASE-011",
-        "durationMs": 291
-      },
-      {
-        "caseId": "CASE-006",
-        "durationMs": 170
+        "durationMs": 280
       }
     ]
   },
@@ -63,7 +63,7 @@
       "caseName": "Earbuds ₹4,999 Auto Refund - Damaged Item",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 70,
+      "durationMs": 79,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -80,7 +80,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302133184-ngh3x"
+      "correlationId": "corr-1789305642153-u8zfl"
     },
     {
       "caseId": "CASE-002",
@@ -104,14 +104,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302133558-9odid"
+      "correlationId": "corr-1789305642449-wa6bf"
     },
     {
       "caseId": "CASE-003",
       "caseName": "Earbuds ₹4,999 Auto Refund - Late Delivery Complaint",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 47,
+      "durationMs": 50,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -128,14 +128,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302133826-v7lt2"
+      "correlationId": "corr-1789305642733-230h3"
     },
     {
       "caseId": "CASE-004",
       "caseName": "Earbuds ₹4,999 Auto Refund - Wrong Item Delivered",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 50,
+      "durationMs": 51,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -152,14 +152,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302134080-ihvi5"
+      "correlationId": "corr-1789305642988-yo8ll"
     },
     {
       "caseId": "CASE-005",
       "caseName": "Earbuds ₹4,999 Auto Refund - Missing Package Accessory",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 49,
+      "durationMs": 51,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -176,14 +176,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302134337-13ecn"
+      "correlationId": "corr-1789305643260-q8zid"
     },
     {
       "caseId": "CASE-006",
       "caseName": "Smartphone ₹24,999 Refund - Requires Manager Approval Gate",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 170,
+      "durationMs": 174,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -200,15 +200,15 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302134596-0udti",
-      "agentRunId": "d7e77574-fc09-451a-aa2c-85b437c9e63a"
+      "correlationId": "corr-1789305643544-jcpdj",
+      "agentRunId": "46000224-1330-4cd1-beff-f404de319e39"
     },
     {
       "caseId": "CASE-007",
       "caseName": "Smartphone ₹24,999 Refund - Approved via Token Resume",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 51,
+      "durationMs": 50,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -225,14 +225,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302135003-ycsyn"
+      "correlationId": "corr-1789305643967-2fb4n"
     },
     {
       "caseId": "CASE-008",
       "caseName": "Smartphone ₹24,999 Refund - Manager Rejection Escalates Safely",
       "category": "HIGH_VALUE_REJECTED",
       "passed": true,
-      "durationMs": 12,
+      "durationMs": 11,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -249,7 +249,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302135275-i97fq"
+      "correlationId": "corr-1789305644222-g6xg9"
     },
     {
       "caseId": "CASE-009",
@@ -273,14 +273,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302135487-rtlgs"
+      "correlationId": "corr-1789305644420-6t9pd"
     },
     {
       "caseId": "CASE-010",
       "caseName": "High Risk Fraud Customer Flag",
       "category": "FRAUD_RISK",
       "passed": true,
-      "durationMs": 16,
+      "durationMs": 15,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -297,14 +297,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302135751-wnfdo"
+      "correlationId": "corr-1789305644677-ugtb5"
     },
     {
       "caseId": "CASE-011",
       "caseName": "Out-Of-Stock Phone Replacement - Customer Consent Required Gate",
       "category": "REPLACEMENT_CONSENT",
       "passed": true,
-      "durationMs": 291,
+      "durationMs": 280,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -321,15 +321,15 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302135983-fqkmm",
-      "agentRunId": "19495eda-d72c-4efd-94b4-0899a107de98"
+      "correlationId": "corr-1789305644877-fqj17",
+      "agentRunId": "be1089f1-6b88-4a89-aef9-b425570590aa"
     },
     {
       "caseId": "CASE-012",
       "caseName": "Out-Of-Stock Replacement - Consent Granted Alternative SKU",
       "category": "CONSENT_GRANTED",
       "passed": true,
-      "durationMs": 370,
+      "durationMs": 386,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -346,14 +346,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "agentRunId": "8b9f8647-427e-4899-9705-d063e8cd106e"
+      "agentRunId": "10f0974f-9d93-4d94-9ed1-b3da853d57b6"
     },
     {
       "caseId": "CASE-013",
       "caseName": "Duplicate Refund Request - Idempotency Key Replay",
       "category": "IDEMPOTENCY_DUPLICATE",
       "passed": true,
-      "durationMs": 50,
+      "durationMs": 52,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -370,14 +370,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302137565-pev4i"
+      "correlationId": "corr-1789305645957-e84ss"
     },
     {
       "caseId": "CASE-014",
       "caseName": "Duplicate Refund Request - Second Execution Yields Zero Additional Mutations",
       "category": "IDEMPOTENCY_DUPLICATE",
       "passed": true,
-      "durationMs": 49,
+      "durationMs": 55,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -394,7 +394,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302137824-1bylz"
+      "correlationId": "corr-1789305646219-p6ane"
     },
     {
       "caseId": "CASE-015",
@@ -424,7 +424,7 @@
       "caseName": "Transient Payment API Error - Bounded Retry Recovery",
       "category": "TOOL_FAILURE",
       "passed": true,
-      "durationMs": 51,
+      "durationMs": 48,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -441,14 +441,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302138348-5wvpb"
+      "correlationId": "corr-1789305646738-tgo2u"
     },
     {
       "caseId": "CASE-017",
       "caseName": "Persistent Payment API Error - Retry Exhaustion Escalate",
       "category": "RETRY_EXHAUSTION",
       "passed": true,
-      "durationMs": 34,
+      "durationMs": 31,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -471,7 +471,7 @@
       "caseName": "Crash Window After DB Mutation - Ground-Truth Reconcile",
       "category": "ACTION_AMBIGUITY",
       "passed": true,
-      "durationMs": 55,
+      "durationMs": 57,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -488,14 +488,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302138835-12sox"
+      "correlationId": "corr-1789305647230-2jmug"
     },
     {
       "caseId": "CASE-019",
       "caseName": "Audio Pods ₹4,999 - Package Never Delivered Missing Item",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 49,
+      "durationMs": 46,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -512,14 +512,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302139102-mvrd0"
+      "correlationId": "corr-1789305647492-rxcjn"
     },
     {
       "caseId": "CASE-020",
       "caseName": "Audio Pods ₹4,999 - Battery Fault Defective Product",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 49,
+      "durationMs": 52,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -536,11 +536,35 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302139359-wck5x"
+      "correlationId": "corr-1789305648570-ggizn"
     },
     {
       "caseId": "CASE-021",
       "caseName": "Smartphone ₹24,999 - Screen Shattered High-Value Approval",
+      "category": "HIGH_VALUE_REFUND",
+      "passed": true,
+      "durationMs": 15,
+      "intentMatched": true,
+      "policyMatched": true,
+      "decisionMatched": true,
+      "actionMatched": true,
+      "resolutionMatched": true,
+      "verificationMatched": true,
+      "actualIntent": "REFUND_REQUEST",
+      "actualPolicyEligible": true,
+      "actualSelectedAction": "REFUND",
+      "actualStatus": "WAITING_FOR_APPROVAL",
+      "actualMutations": 0,
+      "actualVerificationStatus": "NONE",
+      "actualReplanCount": 0,
+      "actualToolAttempts": 1,
+      "safetyViolated": false,
+      "safetyViolations": [],
+      "correlationId": "corr-1789305648838-hxwzp"
+    },
+    {
+      "caseId": "CASE-022",
+      "caseName": "Smartphone ₹24,999 - Dead On Arrival High-Value Approval",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
       "durationMs": 10,
@@ -560,31 +584,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302139627-a6zgf"
-    },
-    {
-      "caseId": "CASE-022",
-      "caseName": "Smartphone ₹24,999 - Dead On Arrival High-Value Approval",
-      "category": "HIGH_VALUE_REFUND",
-      "passed": true,
-      "durationMs": 9,
-      "intentMatched": true,
-      "policyMatched": true,
-      "decisionMatched": true,
-      "actionMatched": true,
-      "resolutionMatched": true,
-      "verificationMatched": true,
-      "actualIntent": "REFUND_REQUEST",
-      "actualPolicyEligible": true,
-      "actualSelectedAction": "REFUND",
-      "actualStatus": "WAITING_FOR_APPROVAL",
-      "actualMutations": 0,
-      "actualVerificationStatus": "NONE",
-      "actualReplanCount": 0,
-      "actualToolAttempts": 1,
-      "safetyViolated": false,
-      "safetyViolations": [],
-      "correlationId": "corr-1789302139821-fhh1f"
+      "correlationId": "corr-1789305649365-7cmwo"
     },
     {
       "caseId": "CASE-023",
@@ -608,14 +608,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302140021-wmcgx"
+      "correlationId": "corr-1789305649558-4eavv"
     },
     {
       "caseId": "CASE-024",
       "caseName": "Smartphone ₹24,999 - Stolen Package High-Value Approval",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 10,
+      "durationMs": 14,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -632,14 +632,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302140240-yoouy"
+      "correlationId": "corr-1789305649765-8tr1o"
     },
     {
       "caseId": "CASE-025",
       "caseName": "Smartphone ₹24,999 - Customer Changed Mind High-Value Approval",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 11,
+      "durationMs": 9,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -656,7 +656,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302140447-2bnxp"
+      "correlationId": "corr-1789305649984-493p1"
     },
     {
       "caseId": "CASE-026",
@@ -680,14 +680,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302140670-xaiep"
+      "correlationId": "corr-1789305650186-3nylx"
     },
     {
       "caseId": "CASE-027",
       "caseName": "Out-Of-Stock Phone Replacement - Explicit Consent Granted",
       "category": "CONSENT_GRANTED",
       "passed": true,
-      "durationMs": 72,
+      "durationMs": 67,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -710,6 +710,30 @@
       "caseName": "Cancel Order ord-cancel-3500 - Valid Window",
       "category": "CANCELLATION",
       "passed": true,
+      "durationMs": 47,
+      "intentMatched": true,
+      "policyMatched": true,
+      "decisionMatched": true,
+      "actionMatched": true,
+      "resolutionMatched": true,
+      "verificationMatched": true,
+      "actualIntent": "CANCELLATION_REQUEST",
+      "actualPolicyEligible": true,
+      "actualSelectedAction": "CANCELLATION",
+      "actualStatus": "RESOLVED",
+      "actualMutations": 0,
+      "actualVerificationStatus": "SUCCESS",
+      "actualReplanCount": 0,
+      "actualToolAttempts": 1,
+      "safetyViolated": false,
+      "safetyViolations": [],
+      "correlationId": "corr-1789305650687-pi1ra"
+    },
+    {
+      "caseId": "CASE-029",
+      "caseName": "Cancel Order ord-cancel-3500 - Buyer Remorse",
+      "category": "CANCELLATION",
+      "passed": true,
       "durationMs": 44,
       "intentMatched": true,
       "policyMatched": true,
@@ -727,38 +751,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302141172-g68d9"
-    },
-    {
-      "caseId": "CASE-029",
-      "caseName": "Cancel Order ord-cancel-3500 - Buyer Remorse",
-      "category": "CANCELLATION",
-      "passed": true,
-      "durationMs": 45,
-      "intentMatched": true,
-      "policyMatched": true,
-      "decisionMatched": true,
-      "actionMatched": true,
-      "resolutionMatched": true,
-      "verificationMatched": true,
-      "actualIntent": "CANCELLATION_REQUEST",
-      "actualPolicyEligible": true,
-      "actualSelectedAction": "CANCELLATION",
-      "actualStatus": "RESOLVED",
-      "actualMutations": 0,
-      "actualVerificationStatus": "SUCCESS",
-      "actualReplanCount": 0,
-      "actualToolAttempts": 1,
-      "safetyViolated": false,
-      "safetyViolations": [],
-      "correlationId": "corr-1789302141438-5h4vi"
+      "correlationId": "corr-1789305650944-bz52b"
     },
     {
       "caseId": "CASE-030",
       "caseName": "Cancel Order ord-cancel-3500 - Price Match Cancel",
       "category": "CANCELLATION",
       "passed": true,
-      "durationMs": 45,
+      "durationMs": 46,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -775,14 +775,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302141701-skb8u"
+      "correlationId": "corr-1789305651196-cb472"
     },
     {
       "caseId": "CASE-031",
       "caseName": "Idempotency Duplicate 031 - Second Attempt",
       "category": "IDEMPOTENCY_DUPLICATE",
       "passed": true,
-      "durationMs": 58,
+      "durationMs": 50,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -799,14 +799,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302142671-eusbt"
+      "correlationId": "corr-1789305651450-77wzd"
     },
     {
       "caseId": "CASE-032",
       "caseName": "Idempotency Duplicate 032 - Third Attempt",
       "category": "IDEMPOTENCY_DUPLICATE",
       "passed": true,
-      "durationMs": 47,
+      "durationMs": 48,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -823,7 +823,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302142939-g9e18"
+      "correlationId": "corr-1789305651717-5wnxb"
     },
     {
       "caseId": "CASE-033",
@@ -847,14 +847,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302143197-1bdyo"
+      "correlationId": "corr-1789305651975-mk2hr"
     },
     {
       "caseId": "CASE-034",
       "caseName": "Transient Failure 034 - AFTER_TOOL Retry",
       "category": "TOOL_FAILURE",
       "passed": true,
-      "durationMs": 50,
+      "durationMs": 46,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -871,14 +871,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302143477-9vb87"
+      "correlationId": "corr-1789305652236-zsatu"
     },
     {
       "caseId": "CASE-035",
       "caseName": "Persistent Failure 035 - Retry Exhaustion Escalates",
       "category": "RETRY_EXHAUSTION",
       "passed": true,
-      "durationMs": 31,
+      "durationMs": 34,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -918,14 +918,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302143965-s83x5"
+      "correlationId": "corr-1789305652751-u1ysu"
     },
     {
       "caseId": "CASE-037",
       "caseName": "Verification Failure 037 - Ground Truth Contradiction Escalate",
       "category": "VERIFICATION_FAILURE",
       "passed": true,
-      "durationMs": 54,
+      "durationMs": 53,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -948,7 +948,7 @@
       "caseName": "VIP Customer Fast Track Refund",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 59,
+      "durationMs": 484,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -965,36 +965,12 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302144503-nyp5t"
+      "correlationId": "corr-1789305653280-8qro6"
     },
     {
       "caseId": "CASE-039",
       "caseName": "High Risk Fraud Customer Block",
       "category": "POLICY_BLOCK",
-      "passed": true,
-      "durationMs": 16,
-      "intentMatched": true,
-      "policyMatched": true,
-      "decisionMatched": true,
-      "actionMatched": true,
-      "resolutionMatched": true,
-      "verificationMatched": true,
-      "actualIntent": "REFUND_REQUEST",
-      "actualPolicyEligible": true,
-      "actualSelectedAction": "REFUND",
-      "actualStatus": "WAITING_FOR_APPROVAL",
-      "actualMutations": 0,
-      "actualVerificationStatus": "NONE",
-      "actualReplanCount": 0,
-      "actualToolAttempts": 1,
-      "safetyViolated": false,
-      "safetyViolations": [],
-      "correlationId": "corr-1789302144776-lyg2c"
-    },
-    {
-      "caseId": "CASE-040",
-      "caseName": "High Risk Fraud Customer Phone Refund",
-      "category": "FRAUD_RISK",
       "passed": true,
       "durationMs": 15,
       "intentMatched": true,
@@ -1013,14 +989,38 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302144992-k71pw"
+      "correlationId": "corr-1789305654033-tbdcq"
+    },
+    {
+      "caseId": "CASE-040",
+      "caseName": "High Risk Fraud Customer Phone Refund",
+      "category": "FRAUD_RISK",
+      "passed": true,
+      "durationMs": 16,
+      "intentMatched": true,
+      "policyMatched": true,
+      "decisionMatched": true,
+      "actionMatched": true,
+      "resolutionMatched": true,
+      "verificationMatched": true,
+      "actualIntent": "REFUND_REQUEST",
+      "actualPolicyEligible": true,
+      "actualSelectedAction": "REFUND",
+      "actualStatus": "WAITING_FOR_APPROVAL",
+      "actualMutations": 0,
+      "actualVerificationStatus": "NONE",
+      "actualReplanCount": 0,
+      "actualToolAttempts": 1,
+      "safetyViolated": false,
+      "safetyViolations": [],
+      "correlationId": "corr-1789305654236-c1ylv"
     },
     {
       "caseId": "CASE-041",
       "caseName": "Invalid Ticket ID Search Error",
       "category": "INVALID_INPUT",
       "passed": true,
-      "durationMs": 2,
+      "durationMs": 1,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1035,14 +1035,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302145196-t70ho"
+      "correlationId": "corr-1789305654447-egcdz"
     },
     {
       "caseId": "CASE-042",
       "caseName": "Invalid Order ID Search Error",
       "category": "INVALID_INPUT",
       "passed": true,
-      "durationMs": 49,
+      "durationMs": 44,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1059,14 +1059,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302145391-uuuzh"
+      "correlationId": "corr-1789305654641-mww3v"
     },
     {
       "caseId": "CASE-043",
       "caseName": "Low Value Auto Refund - Scratch on Screen",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 54,
+      "durationMs": 56,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1083,14 +1083,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302145663-khvpo"
+      "correlationId": "corr-1789305654912-7lybf"
     },
     {
       "caseId": "CASE-044",
       "caseName": "Low Value Auto Refund - Accessories Missing",
       "category": "LOW_VALUE_REFUND",
       "passed": true,
-      "durationMs": 50,
+      "durationMs": 59,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1107,14 +1107,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302145941-alo73"
+      "correlationId": "corr-1789305655249-1dzoz"
     },
     {
       "caseId": "CASE-045",
       "caseName": "High Value Phone Refund - Water Damage Claim",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 12,
+      "durationMs": 13,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1131,14 +1131,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302146220-aj9g3"
+      "correlationId": "corr-1789305655524-6d9yy"
     },
     {
       "caseId": "CASE-046",
       "caseName": "High Value Phone Refund - Stolen In Transit",
       "category": "HIGH_VALUE_REFUND",
       "passed": true,
-      "durationMs": 10,
+      "durationMs": 9,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1155,14 +1155,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302146424-4qci8"
+      "correlationId": "corr-1789305655732-zjo9a"
     },
     {
       "caseId": "CASE-047",
       "caseName": "Out-Of-Stock Replacement - Customer Refused Alternative",
       "category": "REPLACEMENT_CONSENT",
       "passed": true,
-      "durationMs": 20,
+      "durationMs": 18,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1179,14 +1179,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302146627-h373v"
+      "correlationId": "corr-1789305655934-puuv5"
     },
     {
       "caseId": "CASE-048",
       "caseName": "Out-Of-Stock Replacement - Customer Accepted Alternative",
       "category": "CONSENT_GRANTED",
       "passed": true,
-      "durationMs": 64,
+      "durationMs": 62,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1209,7 +1209,7 @@
       "caseName": "Cancel Order ord-cancel-3500 - Duplicate Cancel Call",
       "category": "CANCELLATION",
       "passed": true,
-      "durationMs": 42,
+      "durationMs": 49,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1226,14 +1226,14 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302147109-uay0t"
+      "correlationId": "corr-1789305656408-56pro"
     },
     {
       "caseId": "CASE-050",
       "caseName": "Transient Tool Failure - BEFORE_ACTION Injection Retry",
       "category": "TOOL_FAILURE",
       "passed": true,
-      "durationMs": 47,
+      "durationMs": 49,
       "intentMatched": true,
       "policyMatched": true,
       "decisionMatched": true,
@@ -1250,7 +1250,7 @@
       "actualToolAttempts": 1,
       "safetyViolated": false,
       "safetyViolations": [],
-      "correlationId": "corr-1789302147365-b7072"
+      "correlationId": "corr-1789305656683-q3mz1"
     }
   ]
 }

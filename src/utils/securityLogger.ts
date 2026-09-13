@@ -7,6 +7,9 @@ export type SecurityEventType =
   | 'AUTH_FAILURE'
   | 'AUTHZ_DENIED'
   | 'CROSS_TENANT_ACCESS_DENIED'
+  | 'TENANT_VIOLATION'
+  | 'IDOR_DENIED'
+  | 'UNHANDLED_ERROR'
   | 'APPROVAL_ATTEMPT'
   | 'CONSENT_ATTEMPT'
   | 'SESSION_OR_TOKEN_ISSUED'
@@ -18,6 +21,10 @@ export interface SecurityEventData {
   principalId?: string;
   role?: string;
   tenantId?: string;
+  principalTenant?: string;
+  requestedTenant?: string;
+  principalCustomerId?: string;
+  targetCustomerId?: string;
   route?: string;
   method?: string;
   ip?: string;

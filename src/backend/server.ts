@@ -1712,8 +1712,7 @@ app.use((err: any, req: Request, res: Response, _next: any) => {
   const correlationId = (req as any).correlationId || 'N/A';
   SecurityLogger.logEvent('UNHANDLED_ERROR', {
     correlationId,
-    errorName: err?.name,
-    message: err?.message,
+    reason: err?.message,
     route: req.path,
     method: req.method
   });
@@ -1747,7 +1746,7 @@ export const handleGracefulShutdown = async (signal: string) => {
   }, appConfig.shutdownGraceMs);
 
   try {
-    await coordinator.shutdown();
+    await ExecutionCoordinator.getInstance().shutdown();
     await prisma.$disconnect();
 
     if (serverInstance) {

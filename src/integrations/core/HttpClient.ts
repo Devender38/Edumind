@@ -98,15 +98,62 @@ export class HardenedHttpClient {
 
     let lastError: Error | null = null;
     let attempt = 0;
+    const maxRedirects = 5;
 
     while (attempt <= this.maxRetries) {
       attempt++;
       try {
-        const response = await this.executeWithTimeout(fullUrl, {
-          method: options.method,
-          headers,
-          body: serializedBody
-        }, timeoutMs);
+        let currentUrl = fullUrl;
+        let currentMethod = options.method;
+        let currentBody = serializedBody;
+        let redirectCount = 0;
+
+        let response: Response;
+        while (true) {
+          if (!this.bypassSsrf) {
+            const ssrfCheck = SSRFGuard.isUrlAllowed(currentUrl, { allowLocalhost: this.allowLocalhost });
+            if (!ssrfCheck.allowed) {
+              throw new IntegrationError({
+                message: `SSRF Blocked: Outbound request to '${currentUrl}' rejected. Reason: ${ssrfCheck.reason}`,
+                code: 'SSRF_BLOCKED',
+                retryable: false
+              });
+            }
+          }
+
+          response = await this.executeWithTimeout(currentUrl, {
+            method: currentMethod,
+            headers,
+            body: currentBody,
+            redirect: 'manual'
+          }, timeoutMs);
+
+          const isRedirect = [301, 302, 303, 307, 308].includes(response.status);
+          if (isRedirect) {
+            const location = response.headers.get('location');
+            if (!location) {
+              break;
+            }
+            redirectCount++;
+            if (redirectCount > maxRedirects) {
+              throw new IntegrationError({
+                message: `Too many redirects (exceeded maximum of ${maxRedirects})`,
+                code: 'TOO_MANY_REDIRECTS',
+                retryable: false
+              });
+            }
+
+            currentUrl = new URL(location, currentUrl).href;
+
+            if (response.status === 303 || ((response.status === 301 || response.status === 302) && currentMethod === 'POST')) {
+              currentMethod = 'GET';
+              currentBody = undefined;
+            }
+            continue;
+          }
+
+          break;
+        }
 
         const responseText = await response.text();
         let parsedData: unknown;
