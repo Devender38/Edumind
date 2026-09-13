@@ -41,7 +41,7 @@ services:
         generateValue: true
       - key: CLIENT_URL
         fromService:
-          type: static_site
+          type: web
           name: resolvex-frontend
           property: url
       - key: RESOLVEX_WORKER_CONCURRENCY
@@ -64,8 +64,9 @@ services:
   # ----------------------------------------------------
   # 3. Frontend Single Page Application Static Site
   # ----------------------------------------------------
-  - type: static_site
+  - type: web
     name: resolvex-frontend
+    runtime: static
     buildCommand: npm run build:frontend
     staticPublishPath: ./dist
     routes:
