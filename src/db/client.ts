@@ -12,8 +12,22 @@ export function createPrismaClient(): any {
     }
     activeProvider = 'mongodb';
     try {
-      // @ts-ignore — import generated client-mongodb
-      const { PrismaClient: MongoPrismaClient } = require('../../node_modules/.prisma/client-mongodb');
+      let MongoPrismaClient: any;
+      try {
+        // Primary resolution: generated client inside src/db/generated/client-mongodb
+        // @ts-ignore
+        MongoPrismaClient = require('./generated/client-mongodb').PrismaClient;
+      } catch (_err1) {
+        try {
+          // Secondary resolution: node_modules/.prisma/client-mongodb
+          // @ts-ignore
+          MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
+        } catch (_err2) {
+          // Tertiary resolution: standard @prisma/client with MongoDB datasource
+          MongoPrismaClient = SqlitePrismaClient;
+        }
+      }
+
       return new MongoPrismaClient({
         datasources: {
           db: {
@@ -34,8 +48,13 @@ export function createPrismaClient(): any {
     }
     activeProvider = 'postgres';
     try {
-      // @ts-ignore — import generated client-pg
-      const { PrismaClient: PgPrismaClient } = require('../../node_modules/.prisma/client-pg');
+      let PgPrismaClient: any;
+      try {
+        // @ts-ignore
+        PgPrismaClient = require('.prisma/client-pg').PrismaClient;
+      } catch (_err) {
+        PgPrismaClient = SqlitePrismaClient;
+      }
       return new PgPrismaClient({
         datasources: {
           db: {

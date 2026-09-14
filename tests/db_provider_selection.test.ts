@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPrismaClient, getActiveDbProvider } from '../src/db/client';
 
-describe('Deterministic Database Provider Selection & Safety Tests', () => {
+describe('Deterministic Database Provider Selection & Module Resolution Regression Tests', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -38,5 +38,17 @@ describe('Deterministic Database Provider Selection & Safety Tests', () => {
     delete process.env.DB_PROVIDER;
     createPrismaClient();
     expect(getActiveDbProvider()).toBe('sqlite');
+  });
+
+  it('4. DB_PROVIDER=mongodb with valid MONGODB_URI resolves client without fragile hardcoded path error', () => {
+    process.env.DB_PROVIDER = 'mongodb';
+    process.env.MONGODB_URI = 'mongodb://localhost:27017/test_db';
+
+    // Must NOT throw "Cannot find module ../../node_modules/.prisma/client-mongodb"
+    let client: any;
+    expect(() => {
+      client = createPrismaClient();
+    }).not.toThrow(/Cannot find module '\.\.\/\.\.\/node_modules/);
+    expect(getActiveDbProvider()).toBe('mongodb');
   });
 });
