@@ -8,8 +8,8 @@ datasource db {
 
 generator client {
   provider      = "prisma-client-js"
-  output        = "../src/db/generated/client-mongodb"
-  binaryTargets = ["native"]
+  output        = "../node_modules/@prisma/client-mongodb"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
 }
 
 model Customer {

@@ -19,10 +19,10 @@ export function createPrismaClient(): any {
     let loadError: string = '';
 
     try {
-      // @ts-ignore — primary generated client inside src/db/generated/client-mongodb
-      MongoPrismaClient = require('./generated/client-mongodb').PrismaClient;
+      // @ts-ignore — primary generated package @prisma/client-mongodb in node_modules
+      MongoPrismaClient = require('@prisma/client-mongodb').PrismaClient;
     } catch (e1: any) {
-      loadError += `[Path 1 ./generated/client-mongodb error: ${e1.message}] `;
+      loadError += `[Path 1 @prisma/client-mongodb error: ${e1.message}] `;
       try {
         // @ts-ignore — secondary generated client inside node_modules/.prisma/client-mongodb
         MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
