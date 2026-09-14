@@ -20,7 +20,7 @@ import { NotificationDispatcher } from '../notifications/notificationDispatcher.
 import { PolicyRepository } from '../db/repositories/policyRepository.js';
 import { PolicyConditionEvaluator } from '../policy/PolicyConditionEvaluator.js';
 import { caseRepository } from '../db/repositories/caseRepository.js';
-import { prisma } from '../db/client.js';
+import { prisma, checkDatabaseHealth } from '../db/client.js';
 import { loadConfig, getRuntimeMetadata } from '../config/index.js';
 import { metricsRegistry, sloEngine, incidentManager, PerformanceEngine, RecommendationEngine, ExperimentSafetyController } from '../observability/index.js';
 import { AIResourceGovernance } from '../ai/aiResourceGovernance.js';
@@ -107,9 +107,8 @@ app.get('/api/v1/health/readiness', async (_req: Request, res: Response) => {
   }
 
   // Database Connectivity Probe
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-  } catch (dbErr: any) {
+  const isDbHealthy = await checkDatabaseHealth(1, 100);
+  if (!isDbHealthy) {
     return res.status(503).json({
       status: 'DATABASE_UNAVAILABLE',
       readiness: false,
