@@ -4,9 +4,10 @@ let activeProvider: 'sqlite' | 'postgres' | 'mongodb' = 'sqlite';
 
 export function createPrismaClient(): any {
   const provider = (process.env.DB_PROVIDER || '').toLowerCase();
+  const mongoUri = process.env.MONGODB_URI;
 
-  if (provider === 'mongodb') {
-    const mongoUri = process.env.MONGODB_URI;
+  // Select MongoDB if explicitly specified via DB_PROVIDER=mongodb or if MONGODB_URI is configured
+  if (provider === 'mongodb' || (mongoUri && mongoUri.trim().startsWith('mongodb'))) {
     if (!mongoUri || !mongoUri.trim()) {
       throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "mongodb" but MONGODB_URI environment variable is missing. Production cannot silently fallback to SQLite.');
     }
