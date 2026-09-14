@@ -10,44 +10,39 @@ export function createPrismaClient(): any {
   // 1. MONGODB ATLAS PROVIDER BRANCH
   // ----------------------------------------------------
   if (provider === 'mongodb' || (mongoUri && mongoUri.trim().startsWith('mongodb'))) {
-    const isPlaceholder = mongoUri && (mongoUri.includes('<username>') || mongoUri.includes('<cluster>') || mongoUri.includes('<password>'));
-    if (isPlaceholder && process.env.NODE_ENV !== 'production') {
-      console.warn('[DB CLIENT] MONGODB_URI contains placeholder credentials. Falling back to local SQLite for local development.');
-    } else {
-      if (!mongoUri || !mongoUri.trim()) {
-        throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "mongodb" but MONGODB_URI environment variable is missing. Production cannot fallback to SQLite.');
-      }
-      activeProvider = 'mongodb';
-
-      let MongoPrismaClient: any = null;
-      let loadError: string = '';
-
-      try {
-        // @ts-ignore — primary generated package @prisma/client-mongodb in node_modules
-        MongoPrismaClient = require('@prisma/client-mongodb').PrismaClient;
-      } catch (e1: any) {
-        loadError += `[Path 1 @prisma/client-mongodb error: ${e1.message}] `;
-        try {
-          // @ts-ignore — secondary generated client inside node_modules/.prisma/client-mongodb
-          MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
-        } catch (e2: any) {
-          loadError += `[Path 2 .prisma/client-mongodb error: ${e2.message}] `;
-        }
-      }
-
-      if (!MongoPrismaClient) {
-        throw new Error(`[FATAL DB ERROR] Failed to load MongoDB Prisma Client. Cannot fallback to SQLite. Details: ${loadError}`);
-      }
-
-      return new MongoPrismaClient({
-        datasources: {
-          db: {
-            url: mongoUri,
-          },
-        },
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
+    if (!mongoUri || !mongoUri.trim()) {
+      throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "mongodb" but MONGODB_URI environment variable is missing. Production cannot fallback to SQLite.');
     }
+    activeProvider = 'mongodb';
+
+    let MongoPrismaClient: any = null;
+    let loadError: string = '';
+
+    try {
+      // @ts-ignore — primary generated package @prisma/client-mongodb in node_modules
+      MongoPrismaClient = require('@prisma/client-mongodb').PrismaClient;
+    } catch (e1: any) {
+      loadError += `[Path 1 @prisma/client-mongodb error: ${e1.message}] `;
+      try {
+        // @ts-ignore — secondary generated client inside node_modules/.prisma/client-mongodb
+        MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
+      } catch (e2: any) {
+        loadError += `[Path 2 .prisma/client-mongodb error: ${e2.message}] `;
+      }
+    }
+
+    if (!MongoPrismaClient) {
+      throw new Error(`[FATAL DB ERROR] Failed to load MongoDB Prisma Client. Cannot fallback to SQLite. Details: ${loadError}`);
+    }
+
+    return new MongoPrismaClient({
+      datasources: {
+        db: {
+          url: mongoUri,
+        },
+      },
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
   }
 
   // ----------------------------------------------------
