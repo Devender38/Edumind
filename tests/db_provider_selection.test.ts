@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPrismaClient, getActiveDbProvider } from '../src/db/client';
 
-describe('Deterministic Database Provider Selection & Module Resolution Regression Tests', () => {
+describe('Deterministic Database Provider Selection & Safety Tests', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -44,11 +44,10 @@ describe('Deterministic Database Provider Selection & Module Resolution Regressi
     process.env.DB_PROVIDER = 'mongodb';
     process.env.MONGODB_URI = 'mongodb://localhost:27017/test_db';
 
-    // Must NOT throw "Cannot find module ../../node_modules/.prisma/client-mongodb"
     let client: any;
     expect(() => {
       client = createPrismaClient();
-    }).not.toThrow(/Cannot find module '\.\.\/\.\.\/node_modules/);
+    }).not.toThrow(/the URL must start with the protocol file/);
     expect(getActiveDbProvider()).toBe('mongodb');
   });
 });

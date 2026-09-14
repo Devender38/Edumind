@@ -6,70 +6,88 @@ export function createPrismaClient(): any {
   const provider = (process.env.DB_PROVIDER || '').toLowerCase();
   const mongoUri = process.env.MONGODB_URI;
 
-  // Select MongoDB if explicitly specified via DB_PROVIDER=mongodb or if MONGODB_URI is configured
+  // ----------------------------------------------------
+  // 1. MONGODB ATLAS PROVIDER BRANCH
+  // ----------------------------------------------------
   if (provider === 'mongodb' || (mongoUri && mongoUri.trim().startsWith('mongodb'))) {
     if (!mongoUri || !mongoUri.trim()) {
-      throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "mongodb" but MONGODB_URI environment variable is missing. Production cannot silently fallback to SQLite.');
+      throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "mongodb" but MONGODB_URI environment variable is missing. Production cannot fallback to SQLite.');
     }
     activeProvider = 'mongodb';
-    try {
-      let MongoPrismaClient: any;
-      try {
-        // Primary resolution: generated client inside src/db/generated/client-mongodb
-        // @ts-ignore
-        MongoPrismaClient = require('./generated/client-mongodb').PrismaClient;
-      } catch (_err1) {
-        try {
-          // Secondary resolution: node_modules/.prisma/client-mongodb
-          // @ts-ignore
-          MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
-        } catch (_err2) {
-          // Tertiary resolution: standard @prisma/client with MongoDB datasource
-          MongoPrismaClient = SqlitePrismaClient;
-        }
-      }
 
-      return new MongoPrismaClient({
-        datasources: {
-          db: {
-            url: mongoUri,
-          },
-        },
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
-    } catch (err: any) {
-      throw new Error(`[FATAL DB ERROR] Failed to load MongoDB Prisma Client: ${err.message}`);
+    let MongoPrismaClient: any = null;
+    let loadError: string = '';
+
+    try {
+      // @ts-ignore — primary generated client inside src/db/generated/client-mongodb
+      MongoPrismaClient = require('./generated/client-mongodb').PrismaClient;
+    } catch (e1: any) {
+      loadError += `[Path 1 ./generated/client-mongodb error: ${e1.message}] `;
+      try {
+        // @ts-ignore — secondary generated client inside node_modules/.prisma/client-mongodb
+        MongoPrismaClient = require('.prisma/client-mongodb').PrismaClient;
+      } catch (e2: any) {
+        loadError += `[Path 2 .prisma/client-mongodb error: ${e2.message}] `;
+      }
     }
+
+    if (!MongoPrismaClient) {
+      throw new Error(`[FATAL DB ERROR] Failed to load MongoDB Prisma Client. Cannot fallback to SQLite. Details: ${loadError}`);
+    }
+
+    return new MongoPrismaClient({
+      datasources: {
+        db: {
+          url: mongoUri,
+        },
+      },
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
   }
 
+  // ----------------------------------------------------
+  // 2. POSTGRESQL PRODUCTION PROVIDER BRANCH
+  // ----------------------------------------------------
   if (provider === 'postgres' || provider === 'postgresql') {
     const pgUrl = process.env.DATABASE_URL_PG || process.env.DATABASE_URL;
     if (!pgUrl || (!pgUrl.startsWith('postgresql://') && !pgUrl.startsWith('postgres://'))) {
       throw new Error('[FATAL DB ERROR] DB_PROVIDER is set to "postgres" but DATABASE_URL is missing or invalid.');
     }
     activeProvider = 'postgres';
+
+    let PgPrismaClient: any = null;
+    let loadError: string = '';
+
     try {
-      let PgPrismaClient: any;
+      // @ts-ignore
+      PgPrismaClient = require('.prisma/client-pg').PrismaClient;
+    } catch (e1: any) {
+      loadError += `[Path .prisma/client-pg error: ${e1.message}] `;
       try {
         // @ts-ignore
-        PgPrismaClient = require('.prisma/client-pg').PrismaClient;
-      } catch (_err) {
-        PgPrismaClient = SqlitePrismaClient;
+        PgPrismaClient = require('./generated/client-pg').PrismaClient;
+      } catch (e2: any) {
+        loadError += `[Path ./generated/client-pg error: ${e2.message}] `;
       }
-      return new PgPrismaClient({
-        datasources: {
-          db: {
-            url: pgUrl,
-          },
-        },
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
-    } catch (err: any) {
-      throw new Error(`[FATAL DB ERROR] Failed to load PostgreSQL Prisma Client: ${err.message}`);
     }
+
+    if (!PgPrismaClient) {
+      throw new Error(`[FATAL DB ERROR] Failed to load PostgreSQL Prisma Client. Details: ${loadError}`);
+    }
+
+    return new PgPrismaClient({
+      datasources: {
+        db: {
+          url: pgUrl,
+        },
+      },
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
   }
 
-  // Default SQLite client for local development / testing & TypeScript type inference
+  // ----------------------------------------------------
+  // 3. DEFAULT SQLITE LOCAL DEVELOPMENT & TEST BRANCH
+  // ----------------------------------------------------
   activeProvider = 'sqlite';
   return new SqlitePrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
