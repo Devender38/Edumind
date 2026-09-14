@@ -169,3 +169,117 @@ export async function withDatabaseRetry<T>(
 
   throw lastError;
 }
+
+/**
+ * Safely inspects the structure of MONGODB_URI without exposing credentials.
+ */
+export function getMongoUriDiagnostic(): {
+  provider: string;
+  hasUri: boolean;
+  startsWithProtocol: boolean;
+  hasLeadingTrailingQuotes: boolean;
+  hasLeadingTrailingWhitespace: boolean;
+  databasePathName: string;
+  hasAuthSourceParam: boolean;
+  authSourceValue: string | null;
+  hasUnencodedSpecialChars: boolean;
+  recommendation: string;
+} {
+  const provider = (process.env.DB_PROVIDER || 'sqlite').toLowerCase();
+  const rawUri = process.env.MONGODB_URI || '';
+
+  if (!rawUri) {
+    return {
+      provider,
+      hasUri: false,
+      startsWithProtocol: false,
+      hasLeadingTrailingQuotes: false,
+      hasLeadingTrailingWhitespace: false,
+      databasePathName: 'none',
+      hasAuthSourceParam: false,
+      authSourceValue: null,
+      hasUnencodedSpecialChars: false,
+      recommendation: 'MONGODB_URI environment variable is missing in Render environment.',
+    };
+  }
+
+  const hasLeadingTrailingQuotes = /^["'].*["']$/.test(rawUri.trim());
+  const hasLeadingTrailingWhitespace = rawUri !== rawUri.trim();
+  const cleanUri = rawUri.trim().replace(/^["']|["']$/g, '');
+
+  const startsWithProtocol = cleanUri.startsWith('mongodb+srv://') || cleanUri.startsWith('mongodb://');
+  
+  let databasePathName = 'missing';
+  let hasAuthSourceParam = false;
+  let authSourceValue: string | null = null;
+  let hasUnencodedSpecialChars = false;
+  const recommendations: string[] = [];
+
+  if (hasLeadingTrailingQuotes) {
+    recommendations.push('Remove quotes around MONGODB_URI in Render environment.');
+  }
+
+  if (hasLeadingTrailingWhitespace) {
+    recommendations.push('Remove leading/trailing spaces in MONGODB_URI in Render environment.');
+  }
+
+  try {
+    const parts = cleanUri.split('://');
+    if (parts.length === 2) {
+      const authAndRest = parts[1];
+      const firstSlash = authAndRest.indexOf('/');
+      const firstQuestion = authAndRest.indexOf('?');
+
+      if (firstSlash !== -1) {
+        const pathEnd = firstQuestion !== -1 ? firstQuestion : authAndRest.length;
+        const dbPath = authAndRest.substring(firstSlash + 1, pathEnd);
+        databasePathName = dbPath || 'empty';
+      } else {
+        databasePathName = 'empty';
+      }
+
+      if (firstQuestion !== -1) {
+        const queryString = authAndRest.substring(firstQuestion + 1);
+        const searchParams = new URLSearchParams(queryString);
+        hasAuthSourceParam = searchParams.has('authSource');
+        authSourceValue = searchParams.get('authSource');
+      }
+
+      const atIndex = authAndRest.lastIndexOf('@');
+      if (atIndex !== -1) {
+        const creds = authAndRest.substring(0, atIndex);
+        const colonIndex = creds.indexOf(':');
+        if (colonIndex !== -1) {
+          const pass = creds.substring(colonIndex + 1);
+          if (pass.includes('@') || pass.includes('#') || pass.includes(':') || pass.includes('/')) {
+            hasUnencodedSpecialChars = true;
+            recommendations.push('Password contains unencoded special characters. URL-encode them (e.g. @ -> %40).');
+          }
+        }
+      }
+    }
+  } catch {
+    recommendations.push('URI parsing check warning.');
+  }
+
+  if (databasePathName === 'empty' || databasePathName === 'missing') {
+    recommendations.push('Database name is missing before query parameters. Append /resolvex before ?');
+  }
+
+  if (!hasAuthSourceParam) {
+    recommendations.push('Atlas users require authSource=admin query parameter in MONGODB_URI (e.g. ?authSource=admin&retryWrites=true&w=majority).');
+  }
+
+  return {
+    provider,
+    hasUri: true,
+    startsWithProtocol,
+    hasLeadingTrailingQuotes,
+    hasLeadingTrailingWhitespace,
+    databasePathName,
+    hasAuthSourceParam,
+    authSourceValue,
+    hasUnencodedSpecialChars,
+    recommendation: recommendations.length > 0 ? recommendations.join(' | ') : 'URI format structure looks valid.',
+  };
+}

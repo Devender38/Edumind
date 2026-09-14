@@ -20,7 +20,7 @@ import { NotificationDispatcher } from '../notifications/notificationDispatcher.
 import { PolicyRepository } from '../db/repositories/policyRepository.js';
 import { PolicyConditionEvaluator } from '../policy/PolicyConditionEvaluator.js';
 import { caseRepository } from '../db/repositories/caseRepository.js';
-import { prisma, checkDatabaseHealth } from '../db/client.js';
+import { prisma, checkDatabaseHealth, getMongoUriDiagnostic } from '../db/client.js';
 import { loadConfig, getRuntimeMetadata } from '../config/index.js';
 import { metricsRegistry, sloEngine, incidentManager, PerformanceEngine, RecommendationEngine, ExperimentSafetyController } from '../observability/index.js';
 import { AIResourceGovernance } from '../ai/aiResourceGovernance.js';
@@ -129,6 +129,12 @@ const readinessHandler = async (_req: Request, res: Response) => {
 
 app.get('/api/v1/health/readiness', readinessHandler);
 app.get('/api/v1/readiness', readinessHandler);
+
+// Database Diagnostic Endpoint (Redacted Security Inspection)
+app.get('/api/v1/ops/db-diagnostic', (_req: Request, res: Response) => {
+  const diagnostic = getMongoUriDiagnostic();
+  res.json(diagnostic);
+});
 
 // Integration Health Check Endpoint (Ops)
 app.get('/api/v1/ops/integrations/health', (_req: Request, res: Response) => {
