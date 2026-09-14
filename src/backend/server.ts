@@ -93,7 +93,7 @@ app.get('/api/v1/health', (_req: Request, res: Response<HealthCheckResponse>) =>
 });
 
 // Readiness Check Endpoint (Readiness)
-app.get('/api/v1/health/readiness', async (_req: Request, res: Response) => {
+const readinessHandler = async (_req: Request, res: Response) => {
   const coordinator = ExecutionCoordinator.getInstance();
   const coordinatorReady = coordinator.isReady();
 
@@ -125,7 +125,10 @@ app.get('/api/v1/health/readiness', async (_req: Request, res: Response) => {
     version: appConfig.version,
     timestamp: new Date().toISOString(),
   });
-});
+};
+
+app.get('/api/v1/health/readiness', readinessHandler);
+app.get('/api/v1/readiness', readinessHandler);
 
 // Integration Health Check Endpoint (Ops)
 app.get('/api/v1/ops/integrations/health', (_req: Request, res: Response) => {

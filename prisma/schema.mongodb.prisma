@@ -79,6 +79,8 @@ model Ticket {
   issueType           String
   customerMessage     String
   status              String    @default("OPEN")
+  priority            String    @default("MEDIUM")
+  resolutionType     String?
   resolutionSummary   String?
   refundAmount        Float?
   replacementSku     String?
@@ -92,17 +94,41 @@ model Ticket {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  agentRuns   AgentRun[]
-  traces      AgentTrace[]
-  caseRecords CaseRecord[]
+  agentRuns     AgentRun[]
+  traces        AgentTrace[]
+  caseRecords   CaseRecord[]
+  actionRecords ActionRecord[]
+  escalations   Escalation[]
+  notifications Notification[]
+}
+
+model Policy {
+  id               String          @id @map("_id")
+  tenantId         String          @default("tenant-a")
+  policyKey        String          @default("DEFAULT")
+  name             String
+  description      String?
+  issueType        String          @default("DAMAGED")
+  actionType       String          @default("REFUND")
+  conditions       String          @default("{}")
+  approvalRequired Boolean         @default(false)
+  priority         Int             @default(1)
+  active           Boolean         @default(true)
+  status           String          @default("ACTIVE")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  versions         PolicyVersion[]
 }
 
 model PolicyVersion {
   id          String   @id @map("_id")
   tenantId    String   @default("tenant-a")
-  policyId    String
+  policyId    String?
+  policy      Policy?  @relation(fields: [policyId], references: [id], onDelete: Cascade)
   version     Int      @default(1)
-  rulesJson   String
+  rulesJson   String?  @default("{}")
+  status      String   @default("ACTIVE")
   isActive    Boolean  @default(true)
   createdById String   @default("sys-admin")
   createdAt   DateTime @default(now())
@@ -122,10 +148,42 @@ model AgentRun {
   executedTools  String?
   overallOutcome String?
   idempotencyKey String?   @unique
+  startedAt      DateTime  @default(now())
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  traces AgentTrace[]
+  traces        AgentTrace[]
+  actionRecords ActionRecord[]
+  escalations   Escalation[]
+  notifications Notification[]
+}
+
+model ActionRecord {
+  id                String    @id @map("_id")
+  ticketId          String?
+  ticket            Ticket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId        String?
+  agentRun          AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  actionType        String
+  status            String    @default("PENDING")
+  externalReference String?
+  amount            Float?
+  metadata          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Escalation {
+  id         String    @id @map("_id")
+  ticketId   String
+  ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agentRunId String?
+  agentRun   AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  reason     String
+  priority   String    @default("HIGH")
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
 }
 
 model AgentTrace {
@@ -181,16 +239,20 @@ model Coupon {
 }
 
 model Notification {
-  id             String   @id @map("_id")
-  tenantId       String   @default("tenant-a")
-  customerId     String
-  customer       Customer @relation(fields: [customerId], references: [id])
-  type           String
+  id             String    @id @map("_id")
+  tenantId       String    @default("tenant-a")
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  ticketId       String?
+  ticket         Ticket?   @relation(fields: [ticketId], references: [id])
+  agentRunId     String?
+  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id])
+  type           String    @default("INFO")
   message        String
-  channel        String   @default("EMAIL")
-  status         String   @default("SENT")
-  idempotencyKey String   @unique
-  createdAt      DateTime @default(now())
+  channel        String    @default("EMAIL")
+  status         String    @default("SENT")
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
 }
 
 model ExecutionJob {
@@ -228,3 +290,4 @@ model AuditLog {
   detailsJson   String
   timestamp     DateTime @default(now())
 }
+

@@ -115,7 +115,11 @@ export async function checkDatabaseHealth(maxRetries: number = 3, retryDelayMs: 
     attempt++;
     try {
       if (activeProvider === 'mongodb') {
-        await (prisma as any).$runCommandRaw({ ping: 1 });
+        try {
+          await (prisma as any).$runCommandRaw({ ping: 1 });
+        } catch {
+          await (prisma as any).customer.findFirst();
+        }
       } else {
         await prisma.$queryRaw`SELECT 1`;
       }
