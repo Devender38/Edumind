@@ -1,0 +1,230 @@
+// ResolveX Autonomous Customer Resolution Agent — MongoDB Atlas Production Schema
+// Datasource provider set to MongoDB with URL read from environment variable MONGODB_URI
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../node_modules/.prisma/client-mongodb"
+  binaryTargets = ["native"]
+}
+
+model Customer {
+  id        String   @id @map("_id")
+  tenantId  String   @default("tenant-a")
+  name      String
+  email     String   @unique
+  tier      String   @default("STANDARD")
+  riskScore Float    @default(0.0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders        Order[]
+  tickets       Ticket[]
+  coupons       Coupon[]
+  notifications Notification[]
+}
+
+model Product {
+  id                  String   @id @map("_id")
+  name                String
+  category            String
+  price               Float
+  stockQuantity       Int      @default(0)
+  replacementEligible Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id             String    @id @map("_id")
+  tenantId       String    @default("tenant-a")
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status         String    @default("PROCESSING")
+  totalAmount    Float
+  currency       String    @default("INR")
+  deliveryDate   DateTime?
+  shippingStatus String    @default("PENDING")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items   OrderItem[]
+  tickets Ticket[]
+  refunds RefundTransaction[]
+}
+
+model OrderItem {
+  id        String   @id @map("_id")
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Float
+}
+
+model Ticket {
+  id                  String    @id @map("_id")
+  tenantId            String    @default("tenant-a")
+  customerId          String
+  customer            Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId             String?
+  order               Order?    @relation(fields: [orderId], references: [id])
+  issueType           String
+  customerMessage     String
+  status              String    @default("OPEN")
+  resolutionSummary   String?
+  refundAmount        Float?
+  replacementSku     String?
+  requiresApproval    Boolean   @default(false)
+  requiresConsent     Boolean   @default(false)
+  approvalStatus      String?
+  consentStatus       String?
+  approvalToken       String?
+  idempotencyKey      String?   @unique
+  resolvedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  agentRuns   AgentRun[]
+  traces      AgentTrace[]
+  caseRecords CaseRecord[]
+}
+
+model PolicyVersion {
+  id          String   @id @map("_id")
+  tenantId    String   @default("tenant-a")
+  policyId    String
+  version     Int      @default(1)
+  rulesJson   String
+  isActive    Boolean  @default(true)
+  createdById String   @default("sys-admin")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([policyId, version])
+}
+
+model AgentRun {
+  id             String    @id @map("_id")
+  tenantId       String    @default("tenant-a")
+  ticketId       String
+  ticket         Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  status         String    @default("PENDING")
+  intent         String?
+  confidence     Float?
+  executedTools  String?
+  overallOutcome String?
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  traces AgentTrace[]
+}
+
+model AgentTrace {
+  id              String   @id @map("_id")
+  agentRunId      String
+  agentRun        AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  ticketId        String?
+  ticket          Ticket?  @relation(fields: [ticketId], references: [id])
+  step            String
+  evidenceDetails String
+  actor           String   @default("SYSTEM")
+  timestamp       DateTime @default(now())
+}
+
+model CaseRecord {
+  id                     String    @id @map("_id")
+  tenantId               String    @default("tenant-a")
+  ticketId               String
+  ticket                 Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  orderId                String?
+  customerId             String
+  issueType              String
+  customerMessage        String
+  status                 String    @default("OPEN")
+  resolutionSummary      String?
+  requiresCustomerAction Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model RefundTransaction {
+  id             String   @id @map("_id")
+  tenantId       String   @default("tenant-a")
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  amount         Float
+  currency       String   @default("INR")
+  status         String   @default("SUCCESS")
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+}
+
+model Coupon {
+  id          String    @id @map("_id")
+  tenantId    String    @default("tenant-a")
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  code        String    @unique
+  discount    Float
+  isRedeemed  Boolean   @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id             String   @id @map("_id")
+  tenantId       String   @default("tenant-a")
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  type           String
+  message        String
+  channel        String   @default("EMAIL")
+  status         String   @default("SENT")
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+}
+
+model ExecutionJob {
+  id              String    @id @map("_id")
+  tenantId        String    @default("tenant-a")
+  runId           String    @unique
+  status          String    @default("QUEUED")
+  payloadJson     String
+  attemptCount    Int       @default(0)
+  maxAttempts     Int       @default(3)
+  lastError       String?
+  workerId        String?
+  leaseGeneration Int       @default(0)
+  leaseExpiresAt  DateTime?
+  idempotencyKey  String    @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model MetricSnapshot {
+  id             String   @id @map("_id")
+  tenantId       String   @default("tenant-a")
+  metricName     String
+  value          Float
+  labelsJson     String
+  timestamp      DateTime @default(now())
+}
+
+model AuditLog {
+  id            String   @id @map("_id")
+  tenantId      String   @default("tenant-a")
+  correlationId String
+  action        String
+  actor         String
+  detailsJson   String
+  timestamp     DateTime @default(now())
+}
